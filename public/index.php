@@ -1,53 +1,21 @@
-<!DOCTYPE html>
-<html lang="en">
+<?php
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>time</title>
-</head>
+// 1. Composer 오토로더 불러오기
+require_once __DIR__ . '/../vendor/autoload.php';
 
-<body>
-    <h1>String & String Operator</h1>
-    <?php
-    echo "Hello \"w\"ord";
-    ?>
-    <h2>concatenation operator</h2>
-    <?php
-    echo "Hello " . "world";
-    ?>
-    <h2>String length function</h2>
-    
-    <?php
-    echo strlen("Hello world");
-    ?>
-    
-    <br><br>
-    <?php
-    $name = "king";
-    echo "my name is " . $name . ".";
-    ?>
-    <br><br>
-    <?php
-    echo date('Y-m-d H:i:s');
-    echo '<br>';
-    echo 'PHP version: ' . phpversion();
-    echo '<br>';
-    echo 'Server software: ' . $_SERVER['SERVER_SOFTWARE'];
-    echo '<br>';
-    echo 'Document root: ' . $_SERVER['DOCUMENT_ROOT'];
-    echo '<br>';
-    echo 'Server protocol: ' . $_SERVER['SERVER_PROTOCOL'];
-    ?>
+// 2. 환경변수 파일 로드 (.env)
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
 
-    <?php
-    $redis = new Redis(); // Redis 클래스의 인스턴스를 생성
-    $redis->connect('127.0.0.1', 6379); // 로컬 Redis 서버에 연결 (기본 포트 6379)
-    $redis->set("test_key", "Hello Redis!"); // "test_key"라는 키에 "Hello Redis!"라는 값을 저장
-    echo $redis->get("test_key"); // 저장한 값을 가져와서 출력
-    ?>
+// 3. 라우터 초기화 (객체 생성)
+$router = new App\Core\Router();
 
+// 4. 라우트(경로 규칙) 정의
+// 테스트용 홈페이지 라우트, 아무경로 없이 접속하면 HomeController의 index 메서드가 호출됨
+$router->addRoute('GET', '', [App\Controllers\HomeController::class, 'index']);
 
-</body>
+// 5. 요청 처리
+$requestMethod = $_SERVER['REQUEST_METHOD'];
+$requestUri = trim($_GET['url'] ?? '', '/');
 
-</html>
+$router->dispatch($requestMethod, $requestUri);

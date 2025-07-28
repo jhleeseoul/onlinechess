@@ -1,0 +1,20 @@
+{
+    "name": "jhleeseoul/onlinechess",
+    "description": "An online chess game server built with pure PHP.",
+    "type": "project",
+    "authors": [
+        {
+            "name": "jhleeseoul",
+            "email": "jhleegit@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+}
