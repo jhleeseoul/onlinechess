@@ -14,6 +14,9 @@ $router = new App\Core\Router();
 // 테스트용 홈페이지 라우트, 아무경로 없이 접속하면 HomeController의 index 메서드가 호출됨
 $router->addRoute('GET', '', [App\Controllers\HomeController::class, 'index']);
 
+// 회원가입 API 라우트
+$router->addRoute('POST', 'api/users', [App\Controllers\UserController::class, 'register']);
+
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = trim($_GET['url'] ?? '', '/');

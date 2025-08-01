@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Models\User;
+
+class UserController
+{
+    public function register(): void
+    {
+        // 1. 클라이언트로부터 받은 JSON 데이터를 php://input 스트림에서 읽어옴
+        $input = (array)json_decode(file_get_contents('php://input'), true);
+
+        // 2. 입력값 검증
+        if (!isset($input['username']) || !isset($input['password']) || !isset($input['nickname'])) {
+            http_response_code(400); // Bad Request
+            echo json_encode(['message' => 'Username, password, and nickname are required.']);
+            return;
+        }
+        
+        $username = trim($input['username']);
+        $password = $input['password'];
+        $nickname = trim($input['nickname']);
+
+        if (empty($username) || empty($password) || empty($nickname)) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Input fields cannot be empty.']);
+            return;
+        }
+
+        // 3. 모델을 통해 비즈니스 로직 처리
+        $userModel = new User();
+        $result = $userModel->create($username, $password, $nickname);
+
+        // 4. 결과에 따른 응답
+        if ($result) {
+            http_response_code(201); // Created
+            echo json_encode(['message' => 'User created successfully.', 'userId' => $result]);
+        } else {
+            http_response_code(409); // Conflict (e.g., duplicate username/nickname)
+            echo json_encode(['message' => 'User registration failed. Username or nickname may already exist.']);
+        }
+    }
+}
