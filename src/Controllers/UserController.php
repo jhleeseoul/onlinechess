@@ -55,19 +55,9 @@ class UserController
         // 1. 토큰 검증 및 유저 정보 가져오기
         $authedUser = \App\Utils\Auth::getAuthUser();
         
-        if ($authedUser === 0) {
+        if ($authedUser === null) {
             http_response_code(401); // Unauthorized
-            echo json_encode(['message' => 'Authentication required..']);
-            return;
-        }
-        else if ($authedUser === 1) {
-            http_response_code(400); // Bad Request
-            echo json_encode(['message' => 'Invalid token format.']);
-            return;
-        }
-        else if ($authedUser === 2) {
-            http_response_code(401); // Unauthorized
-            echo json_encode(['message' => 'Invalid token.']);
+            echo json_encode(['message' => 'Authentication required.']);
             return;
         }
 
