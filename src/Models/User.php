@@ -48,4 +48,32 @@ class User
             throw $e;
         }
     }
+
+    /**
+     * 사용자 이름으로 사용자를 찾습니다.
+     * @param string $username
+     * @return array|false 사용자 정보 또는 찾지 못했을 경우 false
+     */
+    public function findByUsername(string $username): array|false
+    {
+        $sql = "SELECT * FROM users WHERE username = :username";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':username', $username);
+        $stmt->execute();
+        return $stmt->fetch();
+    }
+
+    /**
+     * ID로 사용자를 찾습니다.
+     * @param int $id
+     * @return array|false 사용자 정보 또는 찾지 못했을 경우 false
+     */
+    public function findById(int $id): array|false
+    {
+        $sql = "SELECT * FROM users WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch();
+    }
 }

@@ -17,6 +17,12 @@ $router->addRoute('GET', '', [App\Controllers\HomeController::class, 'index']);
 // 회원가입 API 라우트
 $router->addRoute('POST', 'api/users', [App\Controllers\UserController::class, 'register']);
 
+// 로그인 API 라우트
+$router->addRoute('POST', 'api/auth/login', [App\Controllers\AuthController::class, 'login']);
+
+// 내 정보 조회 API 라우트 (인증 필요)
+$router->addRoute('GET', 'api/users/me', [App\Controllers\UserController::class, 'getMyInfo']);
+
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = trim($_GET['url'] ?? '', '/');

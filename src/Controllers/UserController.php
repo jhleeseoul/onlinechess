@@ -6,6 +6,10 @@ use App\Models\User;
 
 class UserController
 {
+    /**
+     * 새로운 사용자를 등록합니다.
+     * @return void
+     */
     public function register(): void
     {
         // 1. 클라이언트로부터 받은 JSON 데이터를 php://input 스트림에서 읽어옴
@@ -40,5 +44,48 @@ class UserController
             http_response_code(409); // Conflict (e.g., duplicate username/nickname)
             echo json_encode(['message' => 'User registration failed. Username or nickname may already exist.']);
         }
+    }
+
+    /**
+     * 현재 로그인한 사용자의 정보를 반환합니다.
+     * @return void
+     */
+    public function getMyInfo(): void
+    {
+        // 1. 토큰 검증 및 유저 정보 가져오기
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        
+        if ($authedUser === 0) {
+            http_response_code(401); // Unauthorized
+            echo json_encode(['message' => 'Authentication required..']);
+            return;
+        }
+        else if ($authedUser === 1) {
+            http_response_code(400); // Bad Request
+            echo json_encode(['message' => 'Invalid token format.']);
+            return;
+        }
+        else if ($authedUser === 2) {
+            http_response_code(401); // Unauthorized
+            echo json_encode(['message' => 'Invalid token.']);
+            return;
+        }
+
+        // 2. 토큰에서 얻은 userId로 DB에서 전체 유저 정보 조회
+        $userModel = new \App\Models\User();
+        // User 모델에 findById 메소드를 추가해야 합니다.
+        $userInfo = $userModel->findById($authedUser->userId);
+
+        if (!$userInfo) {
+            http_response_code(404); // Not Found
+            echo json_encode(['message' => 'User not found.']);
+            return;
+        }
+
+        // 3. 비밀번호 필드는 제외하고 응답
+        unset($userInfo['password']);
+
+        http_response_code(200);
+        echo json_encode($userInfo);
     }
 }
