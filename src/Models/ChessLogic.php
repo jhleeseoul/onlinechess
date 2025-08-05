@@ -54,4 +54,31 @@ class ChessLogic
     {
         return $this->board;
     }
+
+    /**
+     * 체스 좌표(예: 'e4')를 배열 인덱스(예: [4, 4])로 변환합니다.
+     * @param string $coord
+     * @return array|null [row, col]
+     */
+    private function coordToIndex(string $coord): ?array
+    {
+        if (strlen($coord) !== 2) return null;
+        $col = ord(strtolower($coord[0])) - ord('a');
+        $row = 8 - (int)$coord[1];
+        if ($row < 0 || $row > 7 || $col < 0 || $col > 7) {
+            return null;
+        }
+        return [$row, $col];
+    }
+    
+    /**
+     * 배열 인덱스를 체스 좌표로 변환합니다.
+     * @param int $row
+     * @param int $col
+     * @return string
+     */
+    private function indexToCoord(int $row, int $col): string
+    {
+        return chr(ord('a') + $col) . (8 - $row);
+    }
 }
