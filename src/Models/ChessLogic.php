@@ -35,8 +35,11 @@ class ChessLogic
         // 말의 종류에 따라 적절한 메소드 호출
         return match (strtolower($piece)) {
             'p' => $this->getPawnMoves($row, $col, $piece),
-            // 'r' => $this->getRookMoves($row, $col, $piece), // 나중에 추가
+            'r' => $this->getRookMoves($row, $col, $piece),     // <--- 추가
+            'b' => $this->getBishopMoves($row, $col, $piece),  // <--- 추가
+            'q' => $this->getQueenMoves($row, $col, $piece),   // <--- 추가
             // 'n' => $this->getKnightMoves($row, $col, $piece), // 나중에 추가
+            // 'k' => $this->getKingMoves($row, $col, $piece),   // 나중에 추가
             default => [],
         };
     }
@@ -89,6 +92,78 @@ class ChessLogic
         
         // 앙파상, 승급 규칙은 나중에 추가...
         return $moves;
+    }
+
+    /**
+     * 직선/대각선으로 미끄러지듯 움직이는 말(룩, 비숍, 퀸)의 유효한 이동을 계산합니다.
+     * @param int $row 시작 행
+     * @param int $col 시작 열
+     * @param string $piece 현재 말 ('R', 'b', 'Q' 등)
+     * @param array $directions 이동할 방향들의 배열 예: [[-1, 0], [1, 0]] (상, 하)
+     * @return array
+     */
+    private function getSlidingMoves(int $row, int $col, string $piece, array $directions): array
+    {
+        $moves = [];
+        $isWhite = ctype_upper($piece);
+
+        foreach ($directions as $direction) {
+            [$dr, $dc] = $direction;
+            $currentRow = $row + $dr;
+            $currentCol = $col + $dc;
+
+            // 해당 방향으로 계속 탐색
+            while ($currentRow >= 0 && $currentRow <= 7 && $currentCol >= 0 && $currentCol <= 7) {
+                $targetPiece = $this->board[$currentRow][$currentCol];
+
+                if ($targetPiece === null) {
+                    // 1. 빈 칸이면 이동 가능 목록에 추가하고 계속 탐색
+                    $moves[] = $this->indexToCoord($currentRow, $currentCol);
+                } else {
+                    $isTargetWhite = ctype_upper($targetPiece);
+                    // 2. 상대방 말이면, 잡을 수 있으므로 이동 목록에 추가하고 탐색 중단
+                    if ($isWhite !== $isTargetWhite) {
+                        $moves[] = $this->indexToCoord($currentRow, $currentCol);
+                    }
+                    // 3. 우리 편 말이든 상대방 말이든, 경로가 막혔으므로 해당 방향 탐색 중단
+                    break;
+                }
+                
+                $currentRow += $dr;
+                $currentCol += $dc;
+            }
+        }
+        return $moves;
+    }
+
+    private function getRookMoves(int $row, int $col, string $piece): array
+    {
+        $directions = [
+            [-1, 0], // 위
+            [1, 0],  // 아래
+            [0, -1], // 왼쪽
+            [0, 1]   // 오른쪽
+        ];
+        return $this->getSlidingMoves($row, $col, $piece, $directions);
+    }
+
+    private function getBishopMoves(int $row, int $col, string $piece): array
+    {
+        $directions = [
+            [-1, -1], // 왼쪽 위
+            [-1, 1],  // 오른쪽 위
+            [1, -1],  // 왼쪽 아래
+            [1, 1]    // 오른쪽 아래
+        ];
+        return $this->getSlidingMoves($row, $col, $piece, $directions);
+    }
+
+    private function getQueenMoves(int $row, int $col, string $piece): array
+    {
+        // 퀸은 룩의 움직임과 비숍의 움직임을 합친 것과 같습니다.
+        $rookMoves = $this->getRookMoves($row, $col, $piece);
+        $bishopMoves = $this->getBishopMoves($row, $col, $piece);
+        return array_merge($rookMoves, $bishopMoves);
     }
 
     /**
