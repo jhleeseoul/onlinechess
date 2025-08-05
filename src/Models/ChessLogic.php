@@ -27,21 +27,67 @@ class ChessLogic
         $fromIndex = $this->coordToIndex($coord);
         if ($fromIndex === null) return [];
 
-        [$row, $col] = $fromIndex;
-        $piece = $this->board[$row][$col];
+        [$fromRow, $fromCol] = $fromIndex;
+        $piece = $this->board[$fromRow][$fromCol];
 
         if ($piece === null) return [];
-        
-        // 말의 종류에 따라 적절한 메소드 호출
-        return match (strtolower($piece)) {
-            'p' => $this->getPawnMoves($row, $col, $piece),
-            'r' => $this->getRookMoves($row, $col, $piece),
-            'b' => $this->getBishopMoves($row, $col, $piece),
-            'q' => $this->getQueenMoves($row, $col, $piece),
-            'n' => $this->getKnightMoves($row, $col, $piece), // <--- 추가
-            'k' => $this->getKingMoves($row, $col, $piece),   // <--- 추가
+
+        $isWhiteToMove = ctype_upper($piece);
+
+        // 1. 우선, 규칙상 가능한 모든 이동 후보를 계산
+        $candidateMoves = match (strtolower($piece)) {
+            'p' => $this->getPawnMoves($fromRow, $fromCol, $piece),
+            'r' => $this->getRookMoves($fromRow, $fromCol, $piece),
+            'b' => $this->getBishopMoves($fromRow, $fromCol, $piece),
+            'q' => $this->getQueenMoves($fromRow, $fromCol, $piece),
+            'n' => $this->getKnightMoves($fromRow, $fromCol, $piece),
+            'k' => $this->getKingMoves($fromRow, $fromCol, $piece),
             default => [],
         };
+        
+        $legalMoves = [];
+        // 2. 각 후보 이동에 대해, 이동 후 우리 킹이 체크 상태가 되는지 시뮬레이션
+        foreach ($candidateMoves as $moveCoord) {
+            $toIndex = $this->coordToIndex($moveCoord);
+            [$toRow, $toCol] = $toIndex;
+
+            // 2-1. 임시로 말을 이동시켜 봄 (가상 보드)
+            $originalPieceAtTarget = $this->board[$toRow][$toCol];
+            $this->board[$toRow][$toCol] = $piece;
+            $this->board[$fromRow][$fromCol] = null;
+            
+            // 2-2. 우리 킹의 위치를 찾음
+            $kingPos = $this->findKing($isWhiteToMove);
+            
+            // 2-3. 그 위치가 상대에게 공격받지 않는다면 합법적인 수
+            if ($kingPos && !$this->isSquareAttacked($kingPos[0], $kingPos[1], !$isWhiteToMove)) {
+                $legalMoves[] = $moveCoord;
+            }
+
+            // 2-4. 보드를 원래 상태로 되돌림
+            $this->board[$fromRow][$fromCol] = $piece;
+            $this->board[$toRow][$toCol] = $originalPieceAtTarget;
+        }
+
+        return $legalMoves;
+    }
+
+    /**
+     * 지정된 색의 킹 위치를 찾습니다.
+     * @param bool $isWhiteKing 백(true)인지 흑(false)인지
+     * @return array|null [row, col]
+     */
+    private function findKing(bool $isWhiteKing): ?array
+    {
+        $kingToFind = $isWhiteKing ? 'K' : 'k';
+        for ($r = 0; $r < 8; $r++) {
+            for ($c = 0; $c < 8; $c++) {
+                if ($this->board[$r][$c] === $kingToFind) {
+                    return [$r, $c];
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -236,6 +282,8 @@ class ChessLogic
         
     /**
      * 특정 좌표가 지정된 색의 플레이어에게 공격받고 있는지 확인합니다.
+     * getValidMoves와 반대 관점에서 접근합니다.
+     * 즉, 해당 좌표가 공격받고 있다면 true, 그렇지 않다면 false를 반환합니다.
      * @param int $row 확인할 행
      * @param int $col 확인할 열
      * @param bool $isWhiteAttacker 공격하는 쪽이 백(true)인지 흑(false)인지
