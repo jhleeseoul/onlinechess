@@ -23,8 +23,8 @@ $router->addRoute('POST', 'api/auth/login', [App\Controllers\AuthController::cla
 // 내 정보 조회 API 라우트 (인증 필요)
 $router->addRoute('GET', 'api/users/me', [App\Controllers\UserController::class, 'getMyInfo']);
 
-// 체스 로직 테스트용 라우트
-$router->addRoute('GET', 'api/test/parse-fen', [App\Controllers\GameController::class, 'testFenParser']);
+// 체스 로직 테스트용 라우트 (새로운 메소드로 변경)
+$router->addRoute('GET', 'api/test/piece-moves', [App\Controllers\GameController::class, 'testPieceMoves']);
 
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];

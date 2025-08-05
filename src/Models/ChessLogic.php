@@ -56,26 +56,32 @@ class ChessLogic
 
         // 1. 한 칸 전진
         $oneStepRow = $row + $direction;
-        if (isset($this->board[$oneStepRow][$col]) && $this->board[$oneStepRow][$col] === null) {
-            $moves[] = $this->indexToCoord($oneStepRow, $col);
+        // 보드 범위 안에 있는지 먼저 확인
+        if ($oneStepRow >= 0 && $oneStepRow <= 7) {
+            // 해당 칸이 비어있는지 확인 (isset 대신 직접 접근 후 null 비교)
+            if ($this->board[$oneStepRow][$col] === null) {
+                $moves[] = $this->indexToCoord($oneStepRow, $col);
 
-            // 2. 첫 수일 때 두 칸 전진
-            $startingRow = $isWhite ? 6 : 1;
-            $twoStepsRow = $row + (2 * $direction);
-            if ($row === $startingRow && $this->board[$twoStepsRow][$col] === null) {
-                $moves[] = $this->indexToCoord($twoStepsRow, $col);
+                // 2. 첫 수일 때 두 칸 전진 (한 칸 전진이 가능할 때만 체크)
+                $startingRow = $isWhite ? 6 : 1;
+                $twoStepsRow = $row + (2 * $direction);
+                if ($row === $startingRow && $this->board[$twoStepsRow][$col] === null) {
+                    $moves[] = $this->indexToCoord($twoStepsRow, $col);
+                }
             }
         }
-
+        
         // 3. 대각선 공격
         $attackCols = [$col - 1, $col + 1];
-        foreach ($attackCols as $attackCol) {
-            if (isset($this->board[$oneStepRow][$attackCol])) {
-                $targetPiece = $this->board[$oneStepRow][$attackCol];
-                if ($targetPiece !== null) {
-                    $isTargetWhite = ctype_upper($targetPiece);
-                    if ($isWhite !== $isTargetWhite) { // 상대방 말일 경우
-                        $moves[] = $this->indexToCoord($oneStepRow, $attackCol);
+        if ($oneStepRow >= 0 && $oneStepRow <= 7) { // 공격할 행이 보드 안에 있는지 확인
+            foreach ($attackCols as $attackCol) {
+                if ($attackCol >= 0 && $attackCol <= 7) { // 공격할 열이 보드 안에 있는지 확인
+                    $targetPiece = $this->board[$oneStepRow][$attackCol];
+                    if ($targetPiece !== null) { // 목표 칸에 말이 있어야 함
+                        $isTargetWhite = ctype_upper($targetPiece);
+                        if ($isWhite !== $isTargetWhite) { // 상대방 말일 경우
+                            $moves[] = $this->indexToCoord($oneStepRow, $attackCol);
+                        }
                     }
                 }
             }
