@@ -18,6 +18,74 @@ class ChessLogic
     }
 
     /**
+     * 특정 좌표에 있는 말의 유효한 모든 이동 위치를 반환합니다.
+     * @param string $coord 예: "e2"
+     * @return array 유효한 이동 좌표 목록 예: ["e3", "e4"]
+     */
+    public function getValidMovesForPiece(string $coord): array
+    {
+        $fromIndex = $this->coordToIndex($coord);
+        if ($fromIndex === null) return [];
+
+        [$row, $col] = $fromIndex;
+        $piece = $this->board[$row][$col];
+
+        if ($piece === null) return [];
+        
+        // 말의 종류에 따라 적절한 메소드 호출
+        return match (strtolower($piece)) {
+            'p' => $this->getPawnMoves($row, $col, $piece),
+            // 'r' => $this->getRookMoves($row, $col, $piece), // 나중에 추가
+            // 'n' => $this->getKnightMoves($row, $col, $piece), // 나중에 추가
+            default => [],
+        };
+    }
+
+    /**
+     * 폰의 유효한 이동을 계산합니다.
+     * @param int $row
+     * @param int $col
+     * @param string $piece 'P' 또는 'p'
+     * @return array
+     */
+    private function getPawnMoves(int $row, int $col, string $piece): array
+    {
+        $moves = [];
+        $isWhite = ctype_upper($piece);
+        $direction = $isWhite ? -1 : 1; // 백은 위로(-1), 흑은 아래로(+1)
+
+        // 1. 한 칸 전진
+        $oneStepRow = $row + $direction;
+        if (isset($this->board[$oneStepRow][$col]) && $this->board[$oneStepRow][$col] === null) {
+            $moves[] = $this->indexToCoord($oneStepRow, $col);
+
+            // 2. 첫 수일 때 두 칸 전진
+            $startingRow = $isWhite ? 6 : 1;
+            $twoStepsRow = $row + (2 * $direction);
+            if ($row === $startingRow && $this->board[$twoStepsRow][$col] === null) {
+                $moves[] = $this->indexToCoord($twoStepsRow, $col);
+            }
+        }
+
+        // 3. 대각선 공격
+        $attackCols = [$col - 1, $col + 1];
+        foreach ($attackCols as $attackCol) {
+            if (isset($this->board[$oneStepRow][$attackCol])) {
+                $targetPiece = $this->board[$oneStepRow][$attackCol];
+                if ($targetPiece !== null) {
+                    $isTargetWhite = ctype_upper($targetPiece);
+                    if ($isWhite !== $isTargetWhite) { // 상대방 말일 경우
+                        $moves[] = $this->indexToCoord($oneStepRow, $attackCol);
+                    }
+                }
+            }
+        }
+        
+        // 앙파상, 승급 규칙은 나중에 추가...
+        return $moves;
+    }
+
+    /**
      * FEN 문자열을 파싱하여 클래스 프로퍼티를 초기화합니다.
      * 즉, 이차원 배열 형태의 board 상태를 생성합니다.
      * @param string $fen
