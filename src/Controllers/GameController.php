@@ -9,9 +9,10 @@ class GameController
     // 임시 테스트용 메소드
     public function testPieceMoves(): void
     {
-        // 중앙에 백 퀸(Q)을 놓고 테스트
-        $fen = '8/8/8/4k3/8/8/8/8 w - - 0 1';
-        $coord = 'e5'; // e4에 있는 퀸의 움직임
+        // 백의 룩(e2)이 흑 킹(e8)에 의해 핀(pin)에 걸린 상황
+        // 이 룩은 e열을 벗어날 수 없어야 합니다.
+        $fen = '4k3/8/8/8/8/8/4R3/4K3 w - - 0 1';
+        $coord = 'e2'; // e2에 있는 백 룩
         
         $logic = new ChessLogic($fen);
         $validMoves = $logic->getValidMovesForPiece($coord);
@@ -20,7 +21,7 @@ class GameController
         echo json_encode([
             'fen' => $fen,
             'piece_at' => $coord,
-            'valid_moves_count' => count($validMoves), // 결과가 너무 길 수 있으니 개수만 확인
+            'valid_moves_count' => count($validMoves),
             'valid_moves' => $validMoves
         ]);
     }
