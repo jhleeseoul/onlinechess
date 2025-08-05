@@ -35,11 +35,11 @@ class ChessLogic
         // 말의 종류에 따라 적절한 메소드 호출
         return match (strtolower($piece)) {
             'p' => $this->getPawnMoves($row, $col, $piece),
-            'r' => $this->getRookMoves($row, $col, $piece),     // <--- 추가
-            'b' => $this->getBishopMoves($row, $col, $piece),  // <--- 추가
-            'q' => $this->getQueenMoves($row, $col, $piece),   // <--- 추가
-            // 'n' => $this->getKnightMoves($row, $col, $piece), // 나중에 추가
-            // 'k' => $this->getKingMoves($row, $col, $piece),   // 나중에 추가
+            'r' => $this->getRookMoves($row, $col, $piece),
+            'b' => $this->getBishopMoves($row, $col, $piece),
+            'q' => $this->getQueenMoves($row, $col, $piece),
+            'n' => $this->getKnightMoves($row, $col, $piece), // <--- 추가
+            'k' => $this->getKingMoves($row, $col, $piece),   // <--- 추가
             default => [],
         };
     }
@@ -164,6 +164,74 @@ class ChessLogic
         $rookMoves = $this->getRookMoves($row, $col, $piece);
         $bishopMoves = $this->getBishopMoves($row, $col, $piece);
         return array_merge($rookMoves, $bishopMoves);
+    }
+
+    private function getKnightMoves(int $row, int $col, string $piece): array
+    {
+        $moves = [];
+        $isWhite = ctype_upper($piece);
+        
+        // 나이트가 이동할 수 있는 8가지 방향 (row 변화량, col 변화량)
+        $knightMoves = [
+            [-2, -1], [-2, 1], // 위로 두 칸, 좌/우로 한 칸
+            [-1, -2], [-1, 2], // 위로 한 칸, 좌/우로 두 칸
+            [1, -2], [1, 2],   // 아래로 한 칸, 좌/우로 두 칸
+            [2, -1], [2, 1]    // 아래로 두 칸, 좌/우로 한 칸
+        ];
+
+        foreach ($knightMoves as $move) {
+            [$dr, $dc] = $move;
+            $targetRow = $row + $dr;
+            $targetCol = $col + $dc;
+
+            // 1. 목표 위치가 보드 안에 있는지 확인
+            if ($targetRow >= 0 && $targetRow <= 7 && $targetCol >= 0 && $targetCol <= 7) {
+                $targetPiece = $this->board[$targetRow][$targetCol];
+                // 2. 목표 위치가 비어있거나, 상대방의 말인지 확인
+                if ($targetPiece === null) {
+                    $moves[] = $this->indexToCoord($targetRow, $targetCol);
+                } else {
+                    $isTargetWhite = ctype_upper($targetPiece);
+                    if ($isWhite !== $isTargetWhite) {
+                        $moves[] = $this->indexToCoord($targetRow, $targetCol);
+                    }
+                }
+            }
+        }
+        return $moves;
+    }
+
+    private function getKingMoves(int $row, int $col, string $piece): array
+    {
+        $moves = [];
+        $isWhite = ctype_upper($piece);
+
+        // 킹이 이동할 수 있는 8방향
+        $kingDirections = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],           [0, 1],
+            [1, -1],  [1, 0],  [1, 1]
+        ];
+
+        foreach ($kingDirections as $direction) {
+            [$dr, $dc] = $direction;
+            $targetRow = $row + $dr;
+            $targetCol = $col + $dc;
+            
+            if ($targetRow >= 0 && $targetRow <= 7 && $targetCol >= 0 && $targetCol <= 7) {
+                $targetPiece = $this->board[$targetRow][$targetCol];
+                if ($targetPiece === null) {
+                    $moves[] = $this->indexToCoord($targetRow, $targetCol);
+                } else {
+                    $isTargetWhite = ctype_upper($targetPiece);
+                    if ($isWhite !== $isTargetWhite) {
+                        $moves[] = $this->indexToCoord($targetRow, $targetCol);
+                    }
+                }
+            }
+        }
+        // 캐슬링 로직은 나중에 추가...
+        return $moves;
     }
 
     /**

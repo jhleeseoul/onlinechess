@@ -10,8 +10,8 @@ class GameController
     public function testPieceMoves(): void
     {
         // 중앙에 백 퀸(Q)을 놓고 테스트
-        $fen = 'rnb1kbnr/pppppppp/8/8/4Q3/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1';
-        $coord = 'e4'; // e4에 있는 퀸의 움직임
+        $fen = '8/8/8/4k3/8/8/8/8 w - - 0 1';
+        $coord = 'e5'; // e4에 있는 퀸의 움직임
         
         $logic = new ChessLogic($fen);
         $validMoves = $logic->getValidMovesForPiece($coord);
