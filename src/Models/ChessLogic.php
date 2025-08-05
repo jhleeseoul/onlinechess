@@ -233,6 +233,93 @@ class ChessLogic
         // 캐슬링 로직은 나중에 추가...
         return $moves;
     }
+        
+    /**
+     * 특정 좌표가 지정된 색의 플레이어에게 공격받고 있는지 확인합니다.
+     * @param int $row 확인할 행
+     * @param int $col 확인할 열
+     * @param bool $isWhiteAttacker 공격하는 쪽이 백(true)인지 흑(false)인지
+     * @return bool
+     */
+    public function isSquareAttacked(int $row, int $col, bool $isWhiteAttacker): bool
+    {
+        // 1. 상대방 폰의 공격을 확인
+        $pawnDirection = $isWhiteAttacker ? 1 : -1;
+        $pawnAttackRow = $row + $pawnDirection;
+        foreach ([-1, 1] as $pawnAttackColOffset) {
+            $pawnAttackCol = $col + $pawnAttackColOffset;
+            if ($pawnAttackRow >= 0 && $pawnAttackRow <= 7 && $pawnAttackCol >= 0 && $pawnAttackCol <= 7) {
+                $piece = $this->board[$pawnAttackRow][$pawnAttackCol];
+                if ($piece !== null && strtolower($piece) === 'p' && ctype_upper($piece) === $isWhiteAttacker) {
+                    return true;
+                }
+            }
+        }
+
+        // 2. 상대방 나이트의 공격을 확인
+        $knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        foreach ($knightMoves as $move) {
+            $nRow = $row + $move[0];
+            $nCol = $col + $move[1];
+            if ($nRow >= 0 && $nRow <= 7 && $nCol >= 0 && $nCol <= 7) {
+                $piece = $this->board[$nRow][$nCol];
+                if ($piece !== null && strtolower($piece) === 'n' && ctype_upper($piece) === $isWhiteAttacker) {
+                    return true;
+                }
+            }
+        }
+        
+        // 3. 직선 공격 확인 (상대방 룩, 퀸)
+        $rookDirections = [[-1,0],[1,0],[0,-1],[0,1]];
+        foreach ($rookDirections as $direction) {
+            $tempRow = $row; $tempCol = $col;
+            while (true) {
+                $tempRow += $direction[0];
+                $tempCol += $direction[1];
+                if ($tempRow < 0 || $tempRow > 7 || $tempCol < 0 || $tempCol > 7) break;
+                $piece = $this->board[$tempRow][$tempCol];
+                if ($piece !== null) {
+                    if (ctype_upper($piece) === $isWhiteAttacker && (strtolower($piece) === 'r' || strtolower($piece) === 'q')) {
+                        return true;
+                    }
+                    break; // 다른 말이 길을 막고 있음
+                }
+            }
+        }
+
+        // 4. 대각선 공격 확인 (상대방 비숍, 퀸)
+        $bishopDirections = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        foreach ($bishopDirections as $direction) {
+            $tempRow = $row; $tempCol = $col;
+            while (true) {
+                $tempRow += $direction[0];
+                $tempCol += $direction[1];
+                if ($tempRow < 0 || $tempRow > 7 || $tempCol < 0 || $tempCol > 7) break;
+                $piece = $this->board[$tempRow][$tempCol];
+                if ($piece !== null) {
+                    if (ctype_upper($piece) === $isWhiteAttacker && (strtolower($piece) === 'b' || strtolower($piece) === 'q')) {
+                        return true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // 5. 상대방 킹의 공격 확인
+        $kingMoves = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        foreach ($kingMoves as $move) {
+            $kRow = $row + $move[0];
+            $kCol = $col + $move[1];
+            if ($kRow >= 0 && $kRow <= 7 && $kCol >= 0 && $kCol <= 7) {
+                $piece = $this->board[$kRow][$kCol];
+                if ($piece !== null && strtolower($piece) === 'k' && ctype_upper($piece) === $isWhiteAttacker) {
+                    return true;
+                }
+            }
+        }
+
+        return false; // 아무에게도 공격받지 않음
+    }
 
     /**
      * FEN 문자열을 파싱하여 클래스 프로퍼티를 초기화합니다.
