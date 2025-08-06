@@ -26,6 +26,9 @@ $router->addRoute('GET', 'api/users/me', [App\Controllers\UserController::class,
 // 체스 로직 테스트용 라우트 (새로운 메소드로 변경)
 $router->addRoute('GET', 'api/test/piece-moves', [App\Controllers\GameController::class, 'testPieceMoves']);
 
+// 랭크 매치 요청 API 라우트
+$router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::class, 'requestRankMatch']);
+
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = trim($_GET['url'] ?? '', '/');
