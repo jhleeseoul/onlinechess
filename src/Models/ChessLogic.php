@@ -141,7 +141,23 @@ class ChessLogic
             }
         }
         
-        // 앙파상, 승급 규칙은 나중에 추가...
+        // 4. 앙파상 공격
+        if ($this->enPassantTarget !== null) {
+            $epIndex = $this->coordToIndex($this->enPassantTarget);
+            $epRow = $epIndex[0];
+            $epCol = $epIndex[1];
+            
+            // 앙파상 공격이 가능한지 확인
+            // 1. 목표 행이 올바른가 (백은 2행, 흑은 5행에서만 가능)
+            // 2. 내 폰의 위치가 올바른가 (백은 3행, 흑은 4행)
+            // 3. 목표 열이 내 폰의 바로 옆인가
+            if ($oneStepRow === $epRow && abs($col - $epCol) === 1) {
+                 $moves[] = $this->enPassantTarget;
+            }
+        }
+
+        // 승급 규칙은 나중에
+        
         return $moves;
     }
 
@@ -281,7 +297,7 @@ class ChessLogic
                 }
             }
         }
-        
+
         // 캐슬링 가능 여부 확인
         if (!$this->isSquareAttacked($row, $col, !$isWhite)) { // 현재 킹이 체크 상태가 아닐 때만
             // 킹사이드 캐슬링 (O-O)
