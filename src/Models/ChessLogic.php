@@ -157,7 +157,7 @@ class ChessLogic
         }
 
         // 승급 규칙은 나중에
-        
+
         return $moves;
     }
 
@@ -297,7 +297,7 @@ class ChessLogic
                 }
             }
         }
-
+        
         // 캐슬링 가능 여부 확인
         if (!$this->isSquareAttacked($row, $col, !$isWhite)) { // 현재 킹이 체크 상태가 아닐 때만
             // 킹사이드 캐슬링 (O-O)
@@ -442,6 +442,84 @@ class ChessLogic
                 }
             }
         }
+    }
+
+    /**
+     * 현재 보드 상태를 FEN 문자열로 변환합니다.
+     * parseFen과 반대 작업을 수행합니다.
+     * @return string
+     */
+    public function toFen(): string
+    {
+        $fen = '';
+        // 1. 말 배치
+        for ($r = 0; $r < 8; $r++) {
+            $emptyCount = 0;
+            for ($c = 0; $c < 8; $c++) {
+                $piece = $this->board[$r][$c];
+                if ($piece === null) {
+                    $emptyCount++;
+                } else {
+                    if ($emptyCount > 0) {
+                        $fen .= $emptyCount;
+                        $emptyCount = 0;
+                    }
+                    $fen .= $piece;
+                }
+            }
+            if ($emptyCount > 0) $fen .= $emptyCount;
+            if ($r < 7) $fen .= '/';
+        }
+
+        // 2. 나머지 정보
+        $fen .= ' ' . $this->currentTurn;
+        $fen .= ' ' . $this->castlingAvailability;
+        $fen .= ' ' . ($this->enPassantTarget ?? '-');
+        $fen .= ' 0 1'; // 50수 규칙, 턴 카운터는 단순화
+
+        return $fen;
+    }
+    
+    /**
+     * 말을 이동시키고, 새로운 상태의 ChessLogic 객체를 반환합니다.
+     * @param string $fromCoord
+     * @param string $toCoord
+     * @return ChessLogic|null 이동이 불가능하면 null
+     */
+    public function move(string $fromCoord, string $toCoord): ?ChessLogic
+    {
+        $validMoves = $this->getValidMovesForPiece($fromCoord);
+        if (!in_array($toCoord, $validMoves)) {
+            return null; // 불가능한 이동
+        }
+
+        // 1. 새로운 객체에 현재 상태 복사
+        $newLogic = clone $this;
+        $from = $newLogic->coordToIndex($fromCoord);
+        $to = $newLogic->coordToIndex($toCoord);
+        $piece = $newLogic->board[$from[0]][$from[1]];
+
+        // 2. 말 이동
+        $newLogic->board[$to[0]][$to[1]] = $piece;
+        $newLogic->board[$from[0]][$from[1]] = null;
+
+        // 3. 특수 이동 처리 (앙파상, 캐슬링)
+        // ... (생략, 다음 단계에서 구현)
+
+        // 4. 상태 업데이트 (턴, 캐슬링 가능 여부, 앙파상 타겟)
+        $newLogic->currentTurn = ($this->currentTurn === 'w') ? 'b' : 'w';
+        
+        // 폰이 2칸 전진하면 앙파상 타겟 설정
+        if (strtolower($piece) === 'p' && abs($from[0] - $to[0]) === 2) {
+            $newLogic->enPassantTarget = $this->indexToCoord(($from[0] + $to[0]) / 2, $from[1]);
+        } else {
+            $newLogic->enPassantTarget = null;
+        }
+
+        // 킹이나 룩이 움직이면 캐슬링 권한 상실
+        // ... (생략, 다음 단계에서 구현)
+
+        return $newLogic;
     }
 
     // 테스트용: 현재 보드 상태를 보기 쉽게 출력하는 메소드

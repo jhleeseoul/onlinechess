@@ -11,8 +11,8 @@ class GameController
     {
         // 백의 룩(e2)이 흑 킹(e8)에 의해 핀(pin)에 걸린 상황
         // 이 룩은 e열을 벗어날 수 없어야 합니다.
-        $fen = 'rnbq1bnr/pppkpppp/8/3b4/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 1';
-        $coord = 'h1'; // e2에 있는 백 룩
+        $fen = 'rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+        $coord = 'd4'; // e2에 있는 백 룩
         
         $logic = new ChessLogic($fen);
         $validMoves = $logic->getValidMovesForPiece($coord);
