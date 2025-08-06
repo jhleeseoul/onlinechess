@@ -281,7 +281,26 @@ class ChessLogic
                 }
             }
         }
-        // 캐슬링 로직은 나중에 추가...
+        
+        // 캐슬링 가능 여부 확인
+        if (!$this->isSquareAttacked($row, $col, !$isWhite)) { // 현재 킹이 체크 상태가 아닐 때만
+            // 킹사이드 캐슬링 (O-O)
+            $canCastleKingside = $isWhite ? str_contains($this->castlingAvailability, 'K') : str_contains($this->castlingAvailability, 'k');
+            if ($canCastleKingside && $this->board[$row][$col+1] === null && $this->board[$row][$col+2] === null) {
+                if (!$this->isSquareAttacked($row, $col+1, !$isWhite) && !$this->isSquareAttacked($row, $col+2, !$isWhite)) {
+                    $moves[] = $this->indexToCoord($row, $col+2);
+                }
+            }
+
+            // 퀸사이드 캐슬링 (O-O-O)
+            $canCastleQueenside = $isWhite ? str_contains($this->castlingAvailability, 'Q') : str_contains($this->castlingAvailability, 'q');
+            if ($canCastleQueenside && $this->board[$row][$col-1] === null && $this->board[$row][$col-2] === null && $this->board[$row][$col-3] === null) {
+                if (!$this->isSquareAttacked($row, $col-1, !$isWhite) && !$this->isSquareAttacked($row, $col-2, !$isWhite)) {
+                    $moves[] = $this->indexToCoord($row, $col-2);
+                }
+            }
+        }
+        
         return $moves;
     }
         
@@ -386,7 +405,7 @@ class ChessLogic
         $this->currentTurn = $parts[1];
         $this->castlingAvailability = $parts[2];
         $this->enPassantTarget = ($parts[3] === '-') ? null : $parts[3];
-        
+
         // ... (나머지 부분 파싱 로직은 나중에 추가)
 
         // 보드 상태 파싱
