@@ -559,6 +559,69 @@ class ChessLogic
         return $newLogic;
     }
 
+        /**
+     * 현재 턴인 플레이어가 체크메이트 상태인지 확인합니다.
+     * @return bool
+     */
+    public function isCheckmate(): bool
+    {
+        // 1. 현재 턴인 플레이어에게 합법적인 수가 하나라도 있는지 확인
+        if ($this->hasLegalMoves()) {
+            return false;
+        }
+
+        // 2. 합법적인 수가 없는데, 현재 킹이 체크 상태라면 체크메이트
+        $isWhiteTurn = $this->currentTurn === 'w';
+        $kingPos = $this->findKing($isWhiteTurn);
+        if ($kingPos && $this->isSquareAttacked($kingPos[0], $kingPos[1], !$isWhiteTurn)) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * 현재 턴인 플레이어가 스테일메이트 상태인지 확인합니다.
+     * @return bool
+     */
+    public function isStalemate(): bool
+    {
+        // 1. 현재 턴인 플레이어에게 합법적인 수가 하나라도 있는지 확인
+        if ($this->hasLegalMoves()) {
+            return false;
+        }
+
+        // 2. 합법적인 수가 없는데, 현재 킹이 체크 상태가 아니라면 스테일메이트
+        $isWhiteTurn = $this->currentTurn === 'w';
+        $kingPos = $this->findKing($isWhiteTurn);
+        if ($kingPos && !$this->isSquareAttacked($kingPos[0], $kingPos[1], !$isWhiteTurn)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 현재 턴인 플레이어에게 합법적인 수가 하나라도 있는지 확인하는 헬퍼 메소드
+     * @return bool
+     */
+    private function hasLegalMoves(): bool
+    {
+        $isWhiteTurn = $this->currentTurn === 'w';
+        for ($r = 0; $r < 8; $r++) {
+            for ($c = 0; $c < 8; $c++) {
+                $piece = $this->board[$r][$c];
+                if ($piece !== null && ctype_upper($piece) === $isWhiteTurn) {
+                    $moves = $this->getValidMovesForPiece($this->indexToCoord($r, $c));
+                    if (!empty($moves)) {
+                        return true; // 합법적인 수를 하나라도 찾으면 즉시 true 반환
+                    }
+                }
+            }
+        }
+        return false; // 모든 말을 다 확인했는데 합법적인 수가 없음
+    }
+
     // 테스트용: 현재 보드 상태를 보기 쉽게 출력하는 메소드
     public function getBoard(): array
     {
