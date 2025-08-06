@@ -11,6 +11,11 @@ class ChessLogic
     private string $currentTurn;
 
     // ... (캐슬링, 앙파상 등 다른 FEN 정보 프로퍼티들) ...
+    /** @var string 캐슬링 가능 여부 (예: 'KQkq', 'Kq', '-') */
+    private string $castlingAvailability;
+
+    /** @var string|null 앙파상 목표 좌표 (예: 'e3') 또는 null */
+    private ?string $enPassantTarget;
 
     public function __construct(string $fen)
     {
@@ -379,6 +384,9 @@ class ChessLogic
         $parts = explode(' ', $fen);
         $piecePlacement = $parts[0];
         $this->currentTurn = $parts[1];
+        $this->castlingAvailability = $parts[2];
+        $this->enPassantTarget = ($parts[3] === '-') ? null : $parts[3];
+        
         // ... (나머지 부분 파싱 로직은 나중에 추가)
 
         // 보드 상태 파싱
