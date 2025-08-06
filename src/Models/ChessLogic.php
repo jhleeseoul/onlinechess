@@ -486,38 +486,75 @@ class ChessLogic
      * @param string $toCoord
      * @return ChessLogic|null 이동이 불가능하면 null
      */
-    public function move(string $fromCoord, string $toCoord): ?ChessLogic
+        /**
+     * 말을 이동시키고, 새로운 상태의 ChessLogic 객체를 반환합니다.
+     * @param string $fromCoord
+     * @param string $toCoord
+     * @param string|null $promotionPiece 폰 승격 시 선택한 말 (q, r, b, n)
+     * @return ChessLogic|null 이동이 불가능하면 null
+     */
+    public function move(string $fromCoord, string $toCoord, ?string $promotionPiece = null): ?ChessLogic
     {
         $validMoves = $this->getValidMovesForPiece($fromCoord);
         if (!in_array($toCoord, $validMoves)) {
             return null; // 불가능한 이동
         }
 
-        // 1. 새로운 객체에 현재 상태 복사
         $newLogic = clone $this;
         $from = $newLogic->coordToIndex($fromCoord);
         $to = $newLogic->coordToIndex($toCoord);
         $piece = $newLogic->board[$from[0]][$from[1]];
 
-        // 2. 말 이동
+        // 1. 일반 이동
         $newLogic->board[$to[0]][$to[1]] = $piece;
         $newLogic->board[$from[0]][$from[1]] = null;
 
-        // 3. 특수 이동 처리 (앙파상, 캐슬링)
-        // ... (생략, 다음 단계에서 구현)
+        // 2. 특수 이동 처리
+        // 2-1. 폰 승격 (Promotion)
+        if (strtolower($piece) === 'p' && ($to[0] === 0 || $to[0] === 7)) {
+            $newPiece = $promotionPiece ?? 'q'; // 기본값은 퀸
+            $newLogic->board[$to[0]][$to[1]] = ctype_upper($piece) ? strtoupper($newPiece) : strtolower($newPiece);
+        }
 
-        // 4. 상태 업데이트 (턴, 캐슬링 가능 여부, 앙파상 타겟)
+        // 2-2. 앙파상 (En Passant)
+        if (strtolower($piece) === 'p' && $toCoord === $this->enPassantTarget) {
+            $capturedPawnRow = $to[0] + ($this->currentTurn === 'w' ? 1 : -1);
+            $newLogic->board[$capturedPawnRow][$to[1]] = null;
+        }
+
+        // 2-3. 캐슬링 (Castling)
+        if (strtolower($piece) === 'k' && abs($from[1] - $to[1]) === 2) {
+            if ($to[1] > $from[1]) { // 킹사이드
+                $rook = $newLogic->board[$from[0]][7];
+                $newLogic->board[$from[0]][5] = $rook;
+                $newLogic->board[$from[0]][7] = null;
+            } else { // 퀸사이드
+                $rook = $newLogic->board[$from[0]][0];
+                $newLogic->board[$from[0]][3] = $rook;
+                $newLogic->board[$from[0]][0] = null;
+            }
+        }
+
+        // 3. 상태 업데이트
+        // 3-1. 턴 변경
         $newLogic->currentTurn = ($this->currentTurn === 'w') ? 'b' : 'w';
         
-        // 폰이 2칸 전진하면 앙파상 타겟 설정
+        // 3-2. 앙파상 타겟 업데이트
         if (strtolower($piece) === 'p' && abs($from[0] - $to[0]) === 2) {
             $newLogic->enPassantTarget = $this->indexToCoord(($from[0] + $to[0]) / 2, $from[1]);
         } else {
             $newLogic->enPassantTarget = null;
         }
 
-        // 킹이나 룩이 움직이면 캐슬링 권한 상실
-        // ... (생략, 다음 단계에서 구현)
+        // 3-3. 캐슬링 권한 업데이트
+        $newCastlingAvailability = $this->castlingAvailability;
+        if ($piece === 'K') $newCastlingAvailability = str_replace(['K', 'Q'], '', $newCastlingAvailability);
+        if ($piece === 'k') $newCastlingAvailability = str_replace(['k', 'q'], '', $newCastlingAvailability);
+        if ($fromCoord === 'a1' || $toCoord === 'a1') $newCastlingAvailability = str_replace('Q', '', $newCastlingAvailability);
+        if ($fromCoord === 'h1' || $toCoord === 'h1') $newCastlingAvailability = str_replace('K', '', $newCastlingAvailability);
+        if ($fromCoord === 'a8' || $toCoord === 'a8') $newCastlingAvailability = str_replace('q', '', $newCastlingAvailability);
+        if ($fromCoord === 'h8' || $toCoord === 'h8') $newCastlingAvailability = str_replace('k', '', $newCastlingAvailability);
+        $newLogic->castlingAvailability = $newCastlingAvailability ?: '-';
 
         return $newLogic;
     }
