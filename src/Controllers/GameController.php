@@ -10,16 +10,21 @@ class GameController
     public function testPieceMoves(): void
     {
         //initial board
-        $fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-        $coord = 'e2'; // e2에 있는 백 룩
+        $fen = '5k2/8/5R2/8/8/8/8/7K b - - 0 1';
+        $coord = 'f8'; // e2에 있는 백 룩
         
         $logic = new ChessLogic($fen);
         $validMoves = $logic->getValidMovesForPiece($coord);
-        $newlogic = $logic->move($coord, 'e4'); // 예시로 e2에서 e4로 이동
 
         header('Content-Type: application/json');
         echo json_encode([
-            'fen' => $newlogic->toFen()
+            'fen' => $logic->toFen(),
+            'piece_at' => $coord,
+            'valid_moves_count' => count($validMoves),
+            'valid_moves' => $validMoves,
+            'is_checkmate' => $logic->isCheckmate(),
+            'is_stalemate' => $logic->isStalemate(),
+            'is_check' => $logic->isCheck(),
         ]);
     }
 }

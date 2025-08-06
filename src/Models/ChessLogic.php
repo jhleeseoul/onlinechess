@@ -36,10 +36,15 @@ class ChessLogic
         $piece = $this->board[$fromRow][$fromCol];
 
         if ($piece === null) return [];
+        
+        // 현재 턴의 말이 아니면 움직일 수 없음
+        $isWhiteToMove = ($this->currentTurn === 'w');
+        if (ctype_upper($piece) !== $isWhiteToMove) {
+            return [];
+        }
 
-        $isWhiteToMove = ctype_upper($piece);
-
-        // 1. 우선, 규칙상 가능한 모든 이동 후보를 계산
+        // 1. 규칙상 가능한 모든 이동 후보를 계산
+        // 이 부분은 그대로 둡니다.
         $candidateMoves = match (strtolower($piece)) {
             'p' => $this->getPawnMoves($fromRow, $fromCol, $piece),
             'r' => $this->getRookMoves($fromRow, $fromCol, $piece),
@@ -65,6 +70,8 @@ class ChessLogic
             $kingPos = $this->findKing($isWhiteToMove);
             
             // 2-3. 그 위치가 상대에게 공격받지 않는다면 합법적인 수
+            // 이 로직이 바로 '핀'과 '체크를 푸는 움직임'을 모두 커버합니다.
+            // 어떤 수를 두었을 때, 그 결과 보드에서 우리 킹이 공격받고 있다면 그 수는 불법입니다.
             if ($kingPos && !$this->isSquareAttacked($kingPos[0], $kingPos[1], !$isWhiteToMove)) {
                 $legalMoves[] = $moveCoord;
             }
@@ -559,7 +566,20 @@ class ChessLogic
         return $newLogic;
     }
 
-        /**
+    /**
+     * 현재 턴인 플레이어가 체크 상태인지 확인합니다.
+     * @return bool
+     */
+    public function isCheck(): bool
+    {
+        $isWhiteTurn = $this->currentTurn === 'w';
+        $kingPos = $this->findKing($isWhiteTurn);
+        if (!$kingPos) return false; // 킹이 없으면(이론상 불가능) 체크도 아님
+
+        return $this->isSquareAttacked($kingPos[0], $kingPos[1], !$isWhiteTurn);
+    }
+
+    /**
      * 현재 턴인 플레이어가 체크메이트 상태인지 확인합니다.
      * @return bool
      */
