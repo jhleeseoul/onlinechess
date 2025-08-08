@@ -2,29 +2,121 @@
 
 namespace App\Controllers;
 
+use App\Core\Database;
 use App\Models\ChessLogic;
+use App\Models\Game;
+use App\Utils\Auth;
 
 class GameController
 {
-    // 임시 테스트용 메소드
-    public function testPieceMoves(): void
+    // ... getGameData() 메소드는 그대로 둡니다 ...
+    private function getGameData(int $gameId, int $userId): ?array
     {
-        //initial board
-        $fen = '5k2/8/5R2/8/8/8/8/7K b - - 0 1';
-        $coord = 'f8'; // e2에 있는 백 룩
-        
-        $logic = new ChessLogic($fen);
-        $validMoves = $logic->getValidMovesForPiece($coord);
+        // ... 이전과 동일 ...
+    }
 
-        header('Content-Type: application/json');
-        echo json_encode([
-            'fen' => $logic->toFen(),
-            'piece_at' => $coord,
-            'valid_moves_count' => count($validMoves),
-            'valid_moves' => $validMoves,
-            'is_checkmate' => $logic->isCheckmate(),
-            'is_stalemate' => $logic->isStalemate(),
-            'is_check' => $logic->isCheck(),
+
+    public function makeMove(int $gameId): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $gameData = $this->getGameData($gameId, $authedUser->userId);
+        if (!$gameData) return;
+        
+        $isWhite = ($authedUser->userId == $gameData['white_player_id']);
+        $isMyTurn = ($isWhite && $gameData['current_turn'] === 'w') || (!$isWhite && $gameData['current_turn'] === 'b');
+        
+        if (!$isMyTurn) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Not your turn.']);
+            return;
+        }
+
+        $input = (array)json_decode(file_get_contents('php://input'), true);
+        if (!isset($input['from']) || !isset($input['to'])) { 
+            http_response_code(400);
+            echo json_encode(['message' => '`from` and `to` fields are required.']);
+            return;
+        }
+
+        $logic = new ChessLogic($gameData['fen']);
+        $newLogic = $logic->move($input['from'], $input['to'], $input['promotion'] ?? null);
+
+        if ($newLogic === null) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Invalid move.']);
+            return;
+        }
+        
+        $newFen = $newLogic->toFen();
+        
+        // Redis 상태 업데이트
+        $redis = Database::getRedisInstance();
+        $redisKey = "game:{$gameId}";
+        $redis->hMSet($redisKey, [
+            'fen' => $newFen,
+            'current_turn' => $newLogic->isCheckmate() || $newLogic->isStalemate() ? 'none' : $newLogic->getCurrentTurn()
         ]);
+        
+        // ======================= 수정된 부분 시작 =======================
+        // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
+        $updateListKey = "game_updates_list:{$gameId}";
+        $redis->lPush($updateListKey, json_encode(['fen' => $newFen, 'isCheck' => $newLogic->isCheck()]));
+        $redis->expire($updateListKey, 300); // 리스트는 5분 정도만 유지
+        // ======================= 수정된 부분 끝 =======================
+
+        // 게임 종료 확인 및 처리
+        if ($newLogic->isCheckmate() || $newLogic->isStalemate()) {
+            $gameModel = new Game();
+            $result = '';
+            $endReason = '';
+            if ($newLogic->isCheckmate()) {
+                $result = $isWhite ? 'white_win' : 'black_win';
+                $endReason = 'checkmate';
+            } else {
+                $result = 'draw';
+                $endReason = 'stalemate';
+            }
+            $gameModel->updateGameResult($gameId, $result, $endReason);
+            $redis->hSet($redisKey, 'status', 'finished');
+        }
+
+        echo json_encode(['message' => 'Move successful', 'fen' => $newFen]);
+    }
+
+    public function waitForMove(int $gameId): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return; 
+        }
+
+        $gameData = $this->getGameData($gameId, $authedUser->userId);
+        if (!$gameData) return;
+
+        // ======================= 수정된 부분 시작 =======================
+        // Pub/Sub 대신 Blocking List Pop (BRPOP) 사용
+        $redis = Database::getRedisInstance();
+        $updateListKey = "game_updates_list:{$gameId}";
+        
+        // brPop은 [키, 값] 배열을 반환, 30초 동안 대기
+        $message = $redis->brPop([$updateListKey], 30); 
+        
+        if ($message) {
+            // $message[0]는 리스트 키, $message[1]는 값
+            $updateData = json_decode($message[1], true);
+            echo json_encode(['status' => 'updated', 'data' => $updateData]);
+        } else {
+            // 30초 동안 아무 일도 없으면 타임아웃
+            echo json_encode(['status' => 'timeout']);
+        }
+        // ======================= 수정된 부분 끝 =======================
     }
 }

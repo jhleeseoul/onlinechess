@@ -85,6 +85,15 @@ class ChessLogic
     }
 
     /**
+     * 현재 턴을 반환합니다.
+     * @return string 'w' 또는 'b'
+     */
+    public function getCurrentTurn(): string
+    {
+        return $this->currentTurn;
+    }
+
+    /**
      * 지정된 색의 킹 위치를 찾습니다.
      * @param bool $isWhiteKing 백(true)인지 흑(false)인지
      * @return array|null [row, col]

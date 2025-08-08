@@ -29,6 +29,11 @@ $router->addRoute('GET', 'api/test/piece-moves', [App\Controllers\GameController
 // 랭크 매치 요청 API 라우트
 $router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::class, 'requestRankMatch']);
 
+// 게임 관련 API 라우트
+$router->addRoute('POST', 'api/game/{gameId}/move', [App\Controllers\GameController::class, 'makeMove']);
+$router->addRoute('GET', 'api/game/{gameId}/wait-for-move', [App\Controllers\GameController::class, 'waitForMove']);
+
+
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = trim($_GET['url'] ?? '', '/');
