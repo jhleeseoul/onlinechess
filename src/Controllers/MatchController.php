@@ -22,7 +22,7 @@ class MatchController
 
         $redis = Database::getRedisInstance();
         $userModel = new User();
-        $myInfo = $userModel->findById($authedUser->userId);
+        $myInfo = $userModel->findById($authedUser->userId); // db 인스턴스
         
         // 1. 매칭 큐에서 나 자신과 비슷한 점수대의 상대를 찾음 (±100점)
         $minScore = $myInfo['points'] - 100;
