@@ -9,12 +9,26 @@ use App\Utils\Auth;
 
 class GameController
 {
-    // ... getGameData() 메소드는 그대로 둡니다 ...
     private function getGameData(int $gameId, int $userId): ?array
     {
-        // ... 이전과 동일 ...
-    }
+        $redis = Database::getRedisInstance();
+        $redisKey = "game:{$gameId}";
+        $gameData = $redis->hGetAll($redisKey);
 
+        if (empty($gameData)) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Game not found or has expired.']);
+            return null;
+        }
+
+        if ($userId != $gameData['white_player_id'] && $userId != $gameData['black_player_id']) {
+            http_response_code(403);
+            echo json_encode(['message' => 'You are not a player in this game.']);
+            return null;
+        }
+        
+        return $gameData;
+    }
 
     public function makeMove(int $gameId): void
     {
