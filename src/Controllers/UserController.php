@@ -78,4 +78,24 @@ class UserController
         http_response_code(200);
         echo json_encode($userInfo);
     }
+    
+    /**
+     * 현재 로그인한 사용자의 게임 전적을 조회합니다.
+     * @return void
+     */
+    public function getMyMatches(): void
+    {
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        if ($authedUser === null) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $gameModel = new \App\Models\Game();
+        $matches = $gameModel->getMatchesByUserId($authedUser->userId);
+
+        http_response_code(200);
+        echo json_encode($matches);
+    }
 }
