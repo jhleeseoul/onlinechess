@@ -33,6 +33,9 @@ $router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::cl
 $router->addRoute('POST', 'api/game/{gameId}/move', [App\Controllers\GameController::class, 'makeMove']);
 $router->addRoute('GET', 'api/game/{gameId}/wait-for-move', [App\Controllers\GameController::class, 'waitForMove']);
 
+// 상점 관련 API 라우트
+$router->addRoute('GET', 'api/shop/items', [App\Controllers\ShopController::class, 'listItems']);
+$router->addRoute('POST', 'api/shop/items/{itemId}/buy', [App\Controllers\ShopController::class, 'buyItem']);
 
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
