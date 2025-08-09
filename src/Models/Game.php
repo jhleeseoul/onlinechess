@@ -115,4 +115,52 @@ class Game
             return false;
         }
     }
+     
+    /**
+     * 특정 사용자의 모든 게임 전적을 조회합니다.
+     * @param int $userId
+     * @return array
+     */
+    public function getMatchesByUserId(int $userId): array
+    {
+        /*
+         * 1. 내가 백일 때와 흑일 때를 모두 고려해야 합니다.
+         * 2. 내가 백일 때는 흑 플레이어의 닉네임을, 내가 흑일 때는 백 플레이어의 닉네임을 'opponent_nickname'으로 가져와야 합니다.
+         * 3. CASE 문을 사용하여 이 조건을 처리합니다.
+         * 4. JOIN을 두 번 사용하여 white_player와 black_player의 닉네임을 각각 가져옵니다.
+         */
+        $sql = "
+            SELECT 
+                g.id, 
+                g.game_type, 
+                g.result, 
+                g.end_reason, 
+                g.start_at, 
+                g.end_at,
+                CASE 
+                    WHEN g.white_player_id = :userId THEN 'white'
+                    ELSE 'black' 
+                END AS my_color,
+                CASE 
+                    WHEN g.white_player_id = :userId THEN u_black.nickname
+                    ELSE u_white.nickname 
+                END AS opponent_nickname
+            FROM 
+                games g
+            JOIN 
+                users u_white ON g.white_player_id = u_white.id
+            JOIN 
+                users u_black ON g.black_player_id = u_black.id
+            WHERE 
+                g.white_player_id = :userId OR g.black_player_id = :userId
+            ORDER BY 
+                g.start_at DESC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll();
+    }
 }

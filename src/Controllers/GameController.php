@@ -80,7 +80,7 @@ class GameController
        // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
         $updateListKey = "game_updates_list:{$gameId}";
         $redis->lPush($updateListKey, json_encode(['fen' => $newFen, 'isCheck' => $newLogic->isCheck()]));
-        $redis->expire($updateListKey, 300); // 리스트는 5분 정도만 유지
+        $redis->expire($updateListKey, 600); // 리스트는 10분 정도만 유지
        
         // 게임 종료 확인 및 처리
         if ($newLogic->isCheckmate() || $newLogic->isStalemate()) {
