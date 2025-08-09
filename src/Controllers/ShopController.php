@@ -40,7 +40,7 @@ class ShopController
             echo json_encode(['message' => $result['message']]);
         }
     }
-    
+
     /**
      * 사용자의 아이템 인벤토리를 반환합니다.
      * @return void
@@ -58,6 +58,6 @@ class ShopController
         $inventory = $shopModel->getUserInventory($authedUser->userId);
         
         http_response_code(200);
-        echo json_encode($inventory);
+        echo json_encode($inventory, JSON_UNESCAPED_UNICODE);
     }
 }
