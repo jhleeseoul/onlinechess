@@ -77,13 +77,11 @@ class GameController
             'current_turn' => $newLogic->isCheckmate() || $newLogic->isStalemate() ? 'none' : $newLogic->getCurrentTurn()
         ]);
         
-        // ======================= 수정된 부분 시작 =======================
-        // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
+       // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
         $updateListKey = "game_updates_list:{$gameId}";
         $redis->lPush($updateListKey, json_encode(['fen' => $newFen, 'isCheck' => $newLogic->isCheck()]));
         $redis->expire($updateListKey, 300); // 리스트는 5분 정도만 유지
-        // ======================= 수정된 부분 끝 =======================
-
+       
         // 게임 종료 확인 및 처리
         if ($newLogic->isCheckmate() || $newLogic->isStalemate()) {
             $gameModel = new Game();
@@ -115,8 +113,7 @@ class GameController
         $gameData = $this->getGameData($gameId, $authedUser->userId);
         if (!$gameData) return;
 
-        // ======================= 수정된 부분 시작 =======================
-        // Pub/Sub 대신 Blocking List Pop (BRPOP) 사용
+        // Blocking List Pop (BRPOP) 사용
         $redis = Database::getRedisInstance();
         $updateListKey = "game_updates_list:{$gameId}";
         
@@ -131,6 +128,61 @@ class GameController
             // 30초 동안 아무 일도 없으면 타임아웃
             echo json_encode(['status' => 'timeout']);
         }
-        // ======================= 수정된 부분 끝 =======================
+    }
+
+    public function resignGame(int $gameId): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $gameData = $this->getGameData($gameId, $authedUser->userId);
+        if (!$gameData) return;
+        
+        // 이미 종료된 게임인지 확인
+        if ($gameData['status'] === 'finished') {
+            http_response_code(400);
+            echo json_encode(['message' => 'This game has already finished.']);
+            return;
+        }
+        
+        $isWhite = ($authedUser->userId == $gameData['white_player_id']);
+        
+        // 게임 결과 및 종료 사유 결정
+        $result = $isWhite ? 'black_win' : 'white_win';
+        $endReason = 'resign';
+
+        // DB에 게임 결과 업데이트 및 점수/재화 정산
+        $gameModel = new Game();
+        $success = $gameModel->updateGameResult($gameId, $result, $endReason);
+
+        if (!$success) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to update game result.']);
+            return;
+        }
+
+        // Redis 상태 업데이트
+        $redis = Database::getRedisInstance();
+        $redisKey = "game:{$gameId}";
+        $redis->hMSet($redisKey, [
+            'status' => 'finished',
+            'current_turn' => 'none'
+        ]);
+
+        // 상대방에게 게임 종료 알림
+        $updateData = json_encode([
+            'status' => 'finished',
+            'result' => $result,
+            'reason' => $endReason
+        ]);
+        $updateListKey = "game_updates_list:{$gameId}";
+        $redis->lPush($updateListKey, $updateData);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'You have resigned from the game.']);
     }
 }
