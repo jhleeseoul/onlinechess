@@ -79,4 +79,37 @@ class Shop
             return ['status' => 'error', 'message' => $e->getMessage()];
         }
     }
+
+    /**
+     * 특정 사용자의 인벤토리(보유 아이템 목록)를 조회합니다.
+     * @param int $userId
+     * @return array
+     */
+    public function getUserInventory(int $userId): array
+    {
+        $sql = "
+            SELECT 
+                ui.id as user_item_id, 
+                i.id as item_id,
+                i.item_type,
+                i.name,
+                i.description,
+                i.asset_path,
+                ui.acquired_at
+            FROM 
+                user_items ui
+            JOIN 
+                items i ON ui.item_id = i.id
+            WHERE 
+                ui.user_id = :userId
+            ORDER BY 
+                ui.acquired_at DESC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll();
+    }
 }

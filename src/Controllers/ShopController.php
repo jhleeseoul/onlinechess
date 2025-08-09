@@ -40,4 +40,24 @@ class ShopController
             echo json_encode(['message' => $result['message']]);
         }
     }
+    
+    /**
+     * 사용자의 아이템 인벤토리를 반환합니다.
+     * @return void
+     */
+    public function getMyInventory(): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $shopModel = new Shop();
+        $inventory = $shopModel->getUserInventory($authedUser->userId);
+        
+        http_response_code(200);
+        echo json_encode($inventory);
+    }
 }

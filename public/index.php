@@ -38,10 +38,11 @@ $router->addRoute('POST', 'api/game/{gameId}/resign', [App\Controllers\GameContr
 $router->addRoute('GET', 'api/shop/items', [App\Controllers\ShopController::class, 'listItems']);
 $router->addRoute('POST', 'api/shop/items/{itemId}/buy', [App\Controllers\ShopController::class, 'buyItem']);
 
-// ... (기존 라우트)
-
 // 사용자 게임 기록 조회 API 라우트
 $router->addRoute('GET', 'api/users/me/matches', [App\Controllers\UserController::class, 'getMyMatches']);
+
+// 사용자 아이템 인벤토리 조회 API 라우트
+$router->addRoute('GET', 'api/users/me/items', [App\Controllers\ShopController::class, 'getMyInventory']);
 
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
