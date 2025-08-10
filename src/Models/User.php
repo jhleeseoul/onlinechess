@@ -76,4 +76,32 @@ class User
         $stmt->execute();
         return $stmt->fetch();
     }
+
+    /**
+     * 랭킹/리더보드를 조회합니다.
+     * @param int $limit 조회할 사용자 수
+     * @return array
+     */
+    public function getLeaderboard(int $limit = 100): array
+    {
+        // 랭크(순위)를 동적으로 계산하기 위해 변수 사용 (@rank)
+        $sql = "
+            SELECT 
+                (@rank := @rank + 1) AS `rank`,
+                id,
+                nickname,
+                points
+            FROM 
+                users, (SELECT @rank := 0) r
+            ORDER BY 
+                points DESC
+            LIMIT :limit
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll();
+    }
 }
