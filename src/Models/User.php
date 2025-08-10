@@ -104,4 +104,57 @@ class User
         
         return $stmt->fetchAll();
     }
+
+    /**
+     * 사용자가 소유한 아이템을 장착합니다.
+     * @param int $userId
+     * @param int $userItemId 사용자가 소유한 아이템의 고유 ID (user_items 테이블의 id)
+     * @return bool 성공 여부
+     */
+    public function equipItem(int $userId, int $userItemId): bool
+    {
+        try {
+            $this->db->beginTransaction();
+
+            // 1. 해당 아이템을 유저가 소유하고 있는지, 그리고 아이템의 타입을 확인
+            $sqlCheck = "
+                SELECT i.item_type, i.id as item_id
+                FROM user_items ui
+                JOIN items i ON ui.item_id = i.id
+                WHERE ui.id = :userItemId AND ui.user_id = :userId
+            ";
+            $stmtCheck = $this->db->prepare($sqlCheck);
+            $stmtCheck->execute(['userItemId' => $userItemId, 'userId' => $userId]);
+            $itemInfo = $stmtCheck->fetch();
+
+            if (!$itemInfo) {
+                // 이 아이템을 소유하고 있지 않거나, 존재하지 않는 user_item_id
+                throw new \Exception("Item not owned or does not exist.");
+            }
+
+            // 2. 아이템 타입에 따라 적절한 컬럼을 업데이트
+            $columnToUpdate = match ($itemInfo['item_type']) {
+                'profile_icon' => 'profile_icon_id',
+                'board_skin' => 'board_skin_id',
+                'piece_skin' => 'piece_skin_id',
+                default => null,
+            };
+
+            if ($columnToUpdate === null) {
+                throw new \Exception("Invalid item type for equipping.");
+            }
+            
+            $sqlUpdate = "UPDATE users SET {$columnToUpdate} = :itemId WHERE id = :userId";
+            $stmtUpdate = $this->db->prepare($sqlUpdate);
+            $stmtUpdate->execute(['itemId' => $itemInfo['item_id'], 'userId' => $userId]);
+
+            $this->db->commit();
+            return true;
+
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            // 로깅 필요
+            return false;
+        }
+    }
 }
