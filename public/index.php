@@ -47,6 +47,9 @@ $router->addRoute('GET', 'api/users/me/items', [App\Controllers\ShopController::
 // 사용자 랭킹 조회 API 라우트
 $router->addRoute('GET', 'api/leaderboard', [App\Controllers\UserController::class, 'showLeaderboard']);
 
+// 게임 결과 조회 API 라우트
+$router->addRoute('GET', 'api/game/{gameId}/result', [App\Controllers\GameController::class, 'getGameResult']);
+
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = trim($_GET['url'] ?? '', '/');

@@ -185,4 +185,33 @@ class GameController
         http_response_code(200);
         echo json_encode(['message' => 'You have resigned from the game.']);
     }
+
+    public function getGameResult(int $gameId): void
+    {
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        if ($authedUser === null) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $gameModel = new \App\Models\Game();
+        $resultDetails = $gameModel->getGameResultDetails($gameId);
+
+        if (!$resultDetails) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Finished game result not found.']);
+            return;
+        }
+        
+        // 이 게임의 플레이어인지 확인
+        if ($authedUser->userId != $resultDetails['white_player_id'] && $authedUser->userId != $resultDetails['black_player_id']) {
+            http_response_code(403);
+            echo json_encode(['message' => 'You are not a player in this game.']);
+            return;
+        }
+
+        http_response_code(200);
+        echo json_encode($resultDetails);
+    }
 }
