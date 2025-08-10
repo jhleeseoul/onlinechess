@@ -114,4 +114,25 @@ class UserController
         http_response_code(200);
         echo json_encode($leaderboard);
     }
+
+    public function equipUserItem(int $userItemId): void
+    {
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        if ($authedUser === null) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $userModel = new \App\Models\User();
+        $success = $userModel->equipItem($authedUser->userId, $userItemId);
+
+        if ($success) {
+            http_response_code(200);
+            echo json_encode(['message' => 'Item equipped successfully.']);
+        } else {
+            http_response_code(400);
+            echo json_encode(['message' => 'Failed to equip item. You may not own this item.']);
+        }
+    }
 }

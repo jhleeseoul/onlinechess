@@ -30,12 +30,23 @@ $router->addRoute('GET', 'api/test/piece-moves', [App\Controllers\GameController
 $router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::class, 'requestRankMatch']);
 
 // 게임 관련 API 라우트
+
+// 게임 시작 및 이동 API 라우트
 $router->addRoute('POST', 'api/game/{gameId}/move', [App\Controllers\GameController::class, 'makeMove']);
+
+// 다음 수를 기다릴 때 불러오는 API 라우트
 $router->addRoute('GET', 'api/game/{gameId}/wait-for-move', [App\Controllers\GameController::class, 'waitForMove']);
+
+// 게임 포기 API 라우트
 $router->addRoute('POST', 'api/game/{gameId}/resign', [App\Controllers\GameController::class, 'resignGame']);
 
-// 상점 관련 API 라우트
+// 게임 결과 조회 API 라우트
+$router->addRoute('GET', 'api/game/{gameId}/result', [App\Controllers\GameController::class, 'getGameResult']);
+
+// 상점 아이템 목록 조회 API 라우트
 $router->addRoute('GET', 'api/shop/items', [App\Controllers\ShopController::class, 'listItems']);
+
+// 아이템 구매 API 라우트
 $router->addRoute('POST', 'api/shop/items/{itemId}/buy', [App\Controllers\ShopController::class, 'buyItem']);
 
 // 사용자 게임 기록 조회 API 라우트
@@ -44,11 +55,12 @@ $router->addRoute('GET', 'api/users/me/matches', [App\Controllers\UserController
 // 사용자 아이템 인벤토리 조회 API 라우트
 $router->addRoute('GET', 'api/users/me/items', [App\Controllers\ShopController::class, 'getMyInventory']);
 
+// 사용자 아이템 장착 API 라우트
+$router->addRoute('POST', 'api/users/me/items/{userItemId}/equip', [App\Controllers\UserController::class, 'equipUserItem']);
+
 // 사용자 랭킹 조회 API 라우트
 $router->addRoute('GET', 'api/leaderboard', [App\Controllers\UserController::class, 'showLeaderboard']);
 
-// 게임 결과 조회 API 라우트
-$router->addRoute('GET', 'api/game/{gameId}/result', [App\Controllers\GameController::class, 'getGameResult']);
 
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
