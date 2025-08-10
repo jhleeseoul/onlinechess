@@ -167,4 +167,40 @@ class Game
         ]);
         return $stmt->fetchAll();
     }
+
+    /**
+     * 특정 게임의 상세 결과 정보를 조회합니다.
+     * @param int $gameId
+     * @return array|false
+     */
+    public function getGameResultDetails(int $gameId): array|false
+    {
+        $sql = "
+            SELECT 
+                g.id,
+                g.result,
+                g.end_reason,
+                g.end_at,
+                g.white_player_id,
+                g.black_player_id,
+                u_white.nickname as white_nickname,
+                u_white.points as white_current_points,
+                u_black.nickname as black_nickname,
+                u_black.points as black_current_points
+            FROM
+                games g
+            JOIN
+                users u_white ON g.white_player_id = u_white.id
+            JOIN
+                users u_black ON g.black_player_id = u_black.id
+            WHERE
+                g.id = :gameId AND g.result != 'pending'
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':gameId', $gameId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetch();
+    }
 }
