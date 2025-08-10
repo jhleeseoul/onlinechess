@@ -13,7 +13,7 @@ class ShopController
         $items = $shopModel->getAllItems();
         
         http_response_code(200);
-        echo json_encode($items);
+        echo json_encode($items, JSON_UNESCAPED_UNICODE);
     }
 
     public function buyItem(int $itemId): void
