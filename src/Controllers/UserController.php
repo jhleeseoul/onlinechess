@@ -78,7 +78,7 @@ class UserController
         http_response_code(200);
         echo json_encode($userInfo);
     }
-    
+
     /**
      * 현재 로그인한 사용자의 게임 전적을 조회합니다.
      * @return void
@@ -97,5 +97,21 @@ class UserController
 
         http_response_code(200);
         echo json_encode($matches);
+    }
+
+    /**
+     * 사용자 리더보드를 조회합니다.
+     * @return void
+     */
+    public function showLeaderboard(): void
+    {
+        $userModel = new \App\Models\User();
+        // 클라이언트에서 'limit' 파라미터를 받을 수도 있습니다.
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
+
+        $leaderboard = $userModel->getLeaderboard($limit);
+
+        http_response_code(200);
+        echo json_encode($leaderboard);
     }
 }

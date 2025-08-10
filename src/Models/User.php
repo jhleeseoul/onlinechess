@@ -87,15 +87,15 @@ class User
         // 랭크(순위)를 동적으로 계산하기 위해 변수 사용 (@rank)
         $sql = "
             SELECT 
-                (@rank := @rank + 1) AS `rank`,
+                ROW_NUMBER() OVER (ORDER BY points DESC) AS `rank`,
                 id,
                 nickname,
                 points
             FROM 
-                users, (SELECT @rank := 0) r
+                users
             ORDER BY 
                 points DESC
-            LIMIT :limit
+            LIMIT :limit;
         ";
         
         $stmt = $this->db->prepare($sql);

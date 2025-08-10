@@ -44,6 +44,9 @@ $router->addRoute('GET', 'api/users/me/matches', [App\Controllers\UserController
 // 사용자 아이템 인벤토리 조회 API 라우트
 $router->addRoute('GET', 'api/users/me/items', [App\Controllers\ShopController::class, 'getMyInventory']);
 
+// 사용자 랭킹 조회 API 라우트
+$router->addRoute('GET', 'api/leaderboard', [App\Controllers\UserController::class, 'showLeaderboard']);
+
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = trim($_GET['url'] ?? '', '/');
