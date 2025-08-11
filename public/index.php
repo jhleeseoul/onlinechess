@@ -61,6 +61,8 @@ $router->addRoute('POST', 'api/users/me/items/{userItemId}/equip', [App\Controll
 // 사용자 랭킹 조회 API 라우트
 $router->addRoute('GET', 'api/leaderboard', [App\Controllers\UserController::class, 'showLeaderboard']);
 
+// 무승부 제안 처리 API 라우트
+$router->addRoute('POST', 'api/game/{gameId}/draw', [App\Controllers\GameController::class, 'handleDrawOffer']);
 
 // 5. 요청 처리
 $requestMethod = $_SERVER['REQUEST_METHOD'];
