@@ -157,4 +157,48 @@ class User
             return false;
         }
     }
+
+    /**
+     * 사용자 정보를 업데이트합니다.
+     * @param int $userId
+     * @param array $dataToUpdate ['nickname' => 'new_nick', 'password' => 'new_pass']
+     * @return bool 성공 여부
+     */
+    public function updateUser(int $userId, array $dataToUpdate): bool
+    {
+        if (empty($dataToUpdate)) {
+            return false;
+        }
+
+        // 비밀번호가 있다면 해싱 처리
+        if (isset($dataToUpdate['password'])) {
+            $dataToUpdate['password'] = password_hash($dataToUpdate['password'], PASSWORD_DEFAULT);
+        }
+
+        $setClauses = [];
+        $params = ['userId' => $userId];
+
+        foreach ($dataToUpdate as $key => $value) {
+            // 허용된 필드만 업데이트하도록 필터링 (보안 강화)
+            if (in_array($key, ['nickname', 'password'])) {
+                $setClauses[] = "{$key} = :{$key}";
+                $params[$key] = $value;
+            }
+        }
+
+        if (empty($setClauses)) {
+            return false; // 업데이트할 내용이 없음
+        }
+        
+        $sql = "UPDATE users SET " . implode(', ', $setClauses) . " WHERE id = :userId";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute($params);
+        } catch (\PDOException $e) {
+            // 닉네임 중복(UNIQUE 제약 조건 위반) 등
+            // 로깅 필요
+            return false;
+        }
+    }
 }
