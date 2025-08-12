@@ -135,4 +135,48 @@ class UserController
             echo json_encode(['message' => 'Failed to equip item. You may not own this item.']);
         }
     }
+
+    public function updateMyInfo(): void
+    {
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        if ($authedUser === null) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $input = (array)json_decode(file_get_contents('php://input'), true);
+        
+        // 유효성 검사 (빈 값 방지)
+        $dataToUpdate = [];
+        if (!empty($input['nickname'])) {
+            $dataToUpdate['nickname'] = trim($input['nickname']);
+        }
+        if (!empty($input['password'])) {
+            // 비밀번호는 추가적인 유효성 검사가 필요할 수 있음 (예: 최소 길이)
+            if (strlen($input['password']) < 8) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Password must be at least 8 characters long.']);
+                return;
+            }
+            $dataToUpdate['password'] = $input['password'];
+        }
+
+        if (empty($dataToUpdate)) {
+            http_response_code(400);
+            echo json_encode(['message' => 'No data to update.']);
+            return;
+        }
+
+        $userModel = new \App\Models\User();
+        $success = $userModel->updateUser($authedUser->userId, $dataToUpdate);
+
+        if ($success) {
+            http_response_code(200);
+            echo json_encode(['message' => 'User information updated successfully.']);
+        } else {
+            http_response_code(409); // Conflict (예: 닉네임 중복)
+            echo json_encode(['message' => 'Failed to update user information. Nickname may already be in use.']);
+        }
+    }
 }
