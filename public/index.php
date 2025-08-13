@@ -23,16 +23,19 @@ $router->addRoute('POST', 'api/auth/login', [App\Controllers\AuthController::cla
 // 내 정보 조회 API 라우트 (인증 필요)
 $router->addRoute('GET', 'api/users/me', [App\Controllers\UserController::class, 'getMyInfo']);
 
-// 체스 로직 테스트용 라우트 (새로운 메소드로 변경)
-$router->addRoute('GET', 'api/test/piece-moves', [App\Controllers\GameController::class, 'testPieceMoves']);
-
 // 랭크 매치 요청 API 라우트
 $router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::class, 'requestRankMatch']);
+
+// 매칭 결과 대기 API 라우트
+$router->addRoute('GET', 'api/match/wait', [App\Controllers\MatchController::class, 'waitForMatch']);
 
 // 게임 관련 API 라우트
 
 // 게임 시작 및 이동 API 라우트
 $router->addRoute('POST', 'api/game/{gameId}/move', [App\Controllers\GameController::class, 'makeMove']);
+
+// 유효한 수 조회 API 라우트
+$router->addRoute('GET', 'api/game/{gameId}/move/{coord}', [App\Controllers\GameController::class, 'getValidMoves']);
 
 // 다음 수를 기다릴 때 불러오는 API 라우트
 $router->addRoute('GET', 'api/game/{gameId}/wait-for-move', [App\Controllers\GameController::class, 'waitForMove']);

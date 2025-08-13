@@ -289,6 +289,37 @@ class GameController
         }
     }
 
+        // ... handleDrawOffer() 메소드 ...
+
+    public function getValidMoves(int $gameId, string $coord): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $gameData = $this->getGameData($gameId, $authedUser->userId);
+        if (!$gameData) return;
+
+        // 자신의 턴에만 경로를 조회할 수 있도록 함
+        $isWhite = ($authedUser->userId == $gameData['white_player_id']);
+        $isMyTurn = ($isWhite && $gameData['current_turn'] === 'w') || (!$isWhite && $gameData['current_turn'] === 'b');
+        
+        if (!$isMyTurn) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Not your turn.']);
+            return;
+        }
+        
+        $logic = new ChessLogic($gameData['fen']);
+        $validMoves = $logic->getValidMovesForPiece($coord);
+
+        http_response_code(200);
+        echo json_encode($validMoves);
+    }
+
     /**
      * 상대방에게 롱 폴링 알림을 보내는 헬퍼 메소드
      * @param int $gameId

@@ -29,11 +29,13 @@ class MatchController
         $maxScore = $myInfo['points'] + 100;
         $opponents = $redis->zRangeByScore(self::MATCHMAKING_QUEUE, $minScore, $maxScore);
 
+        $opponentInfo = null;
         $opponentId = null;
         // 자기 자신은 제외하고 첫 번째 유저를 상대로 선택
         foreach ($opponents as $potentialOpponent) {
             if ((int)$potentialOpponent !== $myInfo['id']) {
                 $opponentId = (int)$potentialOpponent;
+                $opponentInfo = $userModel->findById($opponentId);
                 break;
             }
         }
@@ -69,14 +71,37 @@ class MatchController
             ]);
             $redis->expire($redisKey, 3600); // 1시간 후 자동 소멸
 
-            http_response_code(200);
-            echo json_encode([
+            $myMatchData = [
                 'status' => 'matched',
                 'message' => 'Match found!',
                 'game_id' => $gameId,
-                'opponent_id' => $opponentId,
-                'my_color' => $isWhite ? 'white' : 'black'
-            ]);
+                'my_color' => $isWhite ? 'white' : 'black',
+                'opponent' => [
+                    'id' => $opponentInfo['id'],
+                    'nickname' => $opponentInfo['nickname'],
+                    'points' => $opponentInfo['points']
+                ]
+            ];
+            $opponentMatchData = [
+                'status' => 'matched',
+                'message' => 'Match found!',
+                'game_id' => $gameId,
+                'my_color' => $isWhite ? 'black' : 'white',
+                'opponent' => [
+                    'id' => $myInfo['id'],
+                    'nickname' => $myInfo['nickname'],
+                    'points' => $myInfo['points']
+                ]
+            ];
+
+            // 1. 두 번째 유저(나)에게는 즉시 응답
+            http_response_code(200);
+            echo json_encode($myMatchData);
+            
+            // 2. 첫 번째 유저(상대)의 결과 리스트에 데이터 PUSH
+            $opponentResultList = "user_match_result:{$opponentId}";
+            $redis->lPush($opponentResultList, json_encode($opponentMatchData));
+            $redis->expire($opponentResultList, 60);
 
         } else {
             // 3. 매칭 실패 (상대가 없음)
@@ -88,6 +113,33 @@ class MatchController
                 'status' => 'pending',
                 'message' => 'Finding an opponent...'
             ]);
+        }
+    }
+
+    public function waitForMatch(): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if ($authedUser === null) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+        
+        $redis = Database::getRedisInstance();
+        // 각 유저별로 매칭 결과를 받을 리스트 키 생성
+        $userMatchResultList = "user_match_result:{$authedUser->userId}";
+        
+        // 30초 동안 내 매칭 결과 리스트에 데이터가 들어오길 대기
+        $message = $redis->brPop([$userMatchResultList], 30);
+        
+        if ($message) {
+            http_response_code(200);
+            header('Content-Type: application/json');
+            // $message[1] 에는 requestRankMatch에서 저장한 JSON 문자열이 들어있음
+            echo $message[1]; 
+        } else {
+            http_response_code(200);
+            echo json_encode(['status' => 'timeout']);
         }
     }
 }
