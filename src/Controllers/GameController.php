@@ -15,19 +15,57 @@ class GameController
         $redisKey = "game:{$gameId}";
         $gameData = $redis->hGetAll($redisKey);
 
-        if (empty($gameData)) {
+        // 1. Redis에 게임 데이터가 있는지 확인
+        if (!empty($gameData)) {
+            // Redis에 데이터가 있고, 현재 사용자가 게임의 플레이어인지 확인
+            if ($userId != $gameData['white_player_id'] && $userId != $gameData['black_player_id']) {
+                http_response_code(403);
+                echo json_encode(['message' => 'You are not a player in this game.']);
+                return null;
+            }
+            return $gameData;
+        }
+
+        // 2. Redis에 데이터가 없으면, DB에서 게임 데이터를 조회 (Cache Miss)
+        $gameModel = new Game();
+        $dbGameData = $gameModel->getGameById($gameId);
+
+        if (!$dbGameData) {
             http_response_code(404);
-            echo json_encode(['message' => 'Game not found or has expired.']);
+            echo json_encode(['message' => 'Game not found.']);
             return null;
         }
 
-        if ($userId != $gameData['white_player_id'] && $userId != $gameData['black_player_id']) {
+        // 3. DB에 게임 데이터가 있고, 현재 사용자가 게임의 플레이어인지 확인
+        if ($userId != $dbGameData['white_player_id'] && $userId != $dbGameData['black_player_id']) {
             http_response_code(403);
             echo json_encode(['message' => 'You are not a player in this game.']);
             return null;
         }
-        
-        return $gameData;
+
+        // 4. DB에서 가져온 게임이 아직 진행 중인 경우, Redis에 복원 (Cache Hydration)
+        if ($dbGameData['result'] === 'pending') {
+            $gameDataToRedis = [
+                'fen' => $dbGameData['fen'],
+                'white_player_id' => $dbGameData['white_player_id'],
+                'black_player_id' => $dbGameData['black_player_id'],
+                'current_turn' => (new ChessLogic($dbGameData['fen']))->getCurrentTurn(), // FEN에서 현재 턴 추출
+                'status' => 'ongoing'
+            ];
+            $redis->hMSet($redisKey, $gameDataToRedis);
+            $redis->expire($redisKey, 3600); // 1시간 후 자동 소멸
+            return $gameDataToRedis;
+        } else {
+            // 게임이 이미 종료된 경우, Redis에 저장하지 않고 DB 데이터 반환
+            // 이 경우, GameController의 다른 메소드에서 'status' 등을 확인하여 적절히 처리해야 함
+            return [
+                'fen' => $dbGameData['fen'],
+                'white_player_id' => $dbGameData['white_player_id'],
+                'black_player_id' => $dbGameData['black_player_id'],
+                'current_turn' => 'none', // 종료된 게임은 턴이 없음
+                'status' => 'finished'
+            ];
+        }
     }
 
     public function makeMove(int $gameId): void
@@ -96,7 +134,7 @@ class GameController
                 $result = 'draw';
                 $endReason = 'stalemate';
             }
-            $gameModel->updateGameResult($gameId, $result, $endReason);
+            $gameModel->updateGameResult($gameId, $result, $endReason, $newFen);
             $redis->hSet($redisKey, 'status', 'finished');
 
             // 응답에 게임 종료 정보 추가
@@ -163,7 +201,7 @@ class GameController
 
         // DB에 게임 결과 업데이트 및 점수/재화 정산
         $gameModel = new Game();
-        $success = $gameModel->updateGameResult($gameId, $result, $endReason);
+        $success = $gameModel->updateGameResult($gameId, $result, $endReason, $gameData['fen']);
 
         if (!$success) {
             http_response_code(500);
@@ -270,7 +308,7 @@ class GameController
                 }
 
                 $gameModel = new Game();
-                $gameModel->updateGameResult($gameId, 'draw', 'agreement');
+                $gameModel->updateGameResult($gameId, 'draw', 'agreement', $gameData['fen']);
                 
                 $redis->hMSet($redisKey, ['status' => 'finished', 'draw_offer_by' => '']);
                 $this->notifyOpponent($gameId, ['type' => 'draw_accepted']);
@@ -294,8 +332,6 @@ class GameController
                 echo json_encode(['message' => 'Invalid action. Use "offer", "accept", or "decline".']);
         }
     }
-
-        // ... handleDrawOffer() 메소드 ...
 
     public function getValidMoves(int $gameId, string $coord): void
     {

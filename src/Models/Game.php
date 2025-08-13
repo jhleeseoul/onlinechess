@@ -23,14 +23,17 @@ class Game
      */
     public function createGame(int $whitePlayerId, int $blackPlayerId, string $gameType = 'rank'): int|false
     {
-        $sql = "INSERT INTO games (white_player_id, black_player_id, game_type, result) 
-                VALUES (:white_player_id, :black_player_id, :game_type, 'pending')";
+        // 게임 생성 시 초기 FEN 상태도 함께 저장
+        $initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+        $sql = "INSERT INTO games (white_player_id, black_player_id, game_type, result, fen) 
+                VALUES (:white_player_id, :black_player_id, :game_type, 'pending', :fen)";
         
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->bindValue(':white_player_id', $whitePlayerId, PDO::PARAM_INT);
             $stmt->bindValue(':black_player_id', $blackPlayerId, PDO::PARAM_INT);
             $stmt->bindValue(':game_type', $gameType);
+            $stmt->bindValue(':fen', $initialFen);
             $stmt->execute();
             return (int)$this->db->lastInsertId();
         } catch (\PDOException $e) {
@@ -58,12 +61,18 @@ class Game
      * @param int $gameId
      * @param string $result 'white_win', 'black_win', 'draw'
      * @param string $endReason 'checkmate', 'stalemate', 'resign' 등
+     * @param string $fen 마지막 FEN 상태
      * @return bool
      */
-    public function updateGameResult(int $gameId, string $result, string $endReason): bool
+    public function updateGameResult(int $gameId, string $result, string $endReason, string $fen): bool
     {
         $game = $this->getGameById($gameId);
         if (!$game) return false;
+
+        // 이미 게임이 종료되었다면 중복 처리 방지
+        if ($game['result'] !== 'pending') {
+            return false;
+        }
 
         $whitePlayerId = $game['white_player_id'];
         $blackPlayerId = $game['black_player_id'];
@@ -92,10 +101,10 @@ class Game
         try {
             $this->db->beginTransaction();
 
-            // 1. 게임 결과 업데이트
-            $sqlGame = "UPDATE games SET result = :result, end_reason = :end_reason, end_at = NOW() WHERE id = :id";
+            // 1. 게임 결과 및 최종 FEN 업데이트
+            $sqlGame = "UPDATE games SET result = :result, end_reason = :end_reason, fen = :fen, end_at = NOW() WHERE id = :id";
             $stmtGame = $this->db->prepare($sqlGame);
-            $stmtGame->execute(['result' => $result, 'end_reason' => $endReason, 'id' => $gameId]);
+            $stmtGame->execute(['result' => $result, 'end_reason' => $endReason, 'fen' => $fen, 'id' => $gameId]);
             
             // 2. 백 플레이어 점수 및 재화 업데이트
             $sqlWhite = "UPDATE users SET points = :points, coins = :coins WHERE id = :id";
