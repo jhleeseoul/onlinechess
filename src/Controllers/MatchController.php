@@ -67,7 +67,8 @@ class MatchController
                 'white_player_id' => $whitePlayerId,
                 'black_player_id' => $blackPlayerId,
                 'current_turn' => 'w',
-                'status' => 'ongoing'
+                'status' => 'ongoing',
+                'pgn' => ''
             ]);
             $redis->expire($redisKey, 3600); // 1시간 후 자동 소멸
 

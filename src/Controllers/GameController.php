@@ -106,13 +106,17 @@ class GameController
         }
         
         $newFen = $newLogic->toFen();
+        $pgn = $newLogic->toPgn($logic, $input['from'], $input['to'], $input['promotion'] ?? null);
         
         // Redis 상태 업데이트
         $redis = Database::getRedisInstance();
         $redisKey = "game:{$gameId}";
+        
+        $currentPgn = $redis->hGet($redisKey, 'pgn') ?? '';
         $redis->hMSet($redisKey, [
             'fen' => $newFen,
-            'current_turn' => $newLogic->isCheckmate() || $newLogic->isStalemate() ? 'none' : $newLogic->getCurrentTurn()
+            'current_turn' => $newLogic->isCheckmate() || $newLogic->isStalemate() ? 'none' : $newLogic->getCurrentTurn(),
+            'pgn' => $currentPgn . $pgn
         ]);
         
        // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
@@ -134,7 +138,8 @@ class GameController
                 $result = 'draw';
                 $endReason = 'stalemate';
             }
-            $gameModel->updateGameResult($gameId, $result, $endReason, $newFen);
+            $finalPgn = $redis->hGet($redisKey, 'pgn');
+            $gameModel->updateGameResult($gameId, $result, $endReason, $newFen, $finalPgn);
             $redis->hSet($redisKey, 'status', 'finished');
 
             // 응답에 게임 종료 정보 추가
@@ -201,7 +206,10 @@ class GameController
 
         // DB에 게임 결과 업데이트 및 점수/재화 정산
         $gameModel = new Game();
-        $success = $gameModel->updateGameResult($gameId, $result, $endReason, $gameData['fen']);
+        $redis = Database::getRedisInstance();
+        $redisKey = "game:{$gameId}";
+        $finalPgn = $redis->hGet($redisKey, 'pgn');
+        $success = $gameModel->updateGameResult($gameId, $result, $endReason, $gameData['fen'], $finalPgn);
 
         if (!$success) {
             http_response_code(500);
@@ -308,7 +316,8 @@ class GameController
                 }
 
                 $gameModel = new Game();
-                $gameModel->updateGameResult($gameId, 'draw', 'agreement', $gameData['fen']);
+                $finalPgn = $redis->hGet($redisKey, 'pgn');
+                $gameModel->updateGameResult($gameId, 'draw', 'agreement', $gameData['fen'], $finalPgn);
                 
                 $redis->hMSet($redisKey, ['status' => 'finished', 'draw_offer_by' => '']);
                 $this->notifyOpponent($gameId, ['type' => 'draw_accepted']);

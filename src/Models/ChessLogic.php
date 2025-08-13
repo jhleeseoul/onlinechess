@@ -17,9 +17,81 @@ class ChessLogic
     /** @var string|null 앙파상 목표 좌표 (예: 'e3') 또는 null */
     private ?string $enPassantTarget;
 
+    /** @var int 50수 규칙 카운터 */
+    private int $halfmoveClock;
+
+    /** @var int 전체 턴 수 */
+    private int $fullmoveNumber;
+
     public function __construct(string $fen)
     {
         $this->parseFen($fen);
+    }
+
+    /**
+     * 현재 이동을 PGN 형식으로 변환합니다.
+     * 이 메소드는 move()가 호출된 *이후*의 새로운 ChessLogic 객체에서 호출되어야 합니다.
+     * @param ChessLogic $previousLogic 이동 *이전*의 ChessLogic 객체
+     * @param string $fromCoord 이동 시작 좌표 (예: "e2")
+     * @param string $toCoord 이동 도착 좌표 (예: "e4")
+     * @param string|null $promotionPiece 승격한 말
+     * @return string
+     */
+    public function toPgn(ChessLogic $previousLogic, string $fromCoord, string $toCoord, ?string $promotionPiece = null): string
+    {
+        $pgn = '';
+
+        // 1. 턴 넘버
+        if ($previousLogic->getCurrentTurn() === 'w') {
+            $pgn .= $previousLogic->fullmoveNumber . '. ';
+        }
+
+        $fromIndex = $previousLogic->coordToIndex($fromCoord);
+        $toIndex = $previousLogic->coordToIndex($toCoord);
+        $piece = $previousLogic->board[$fromIndex[0]][$fromIndex[1]];
+        $pieceType = strtolower($piece);
+        
+        // 2. 캐슬링
+        if ($pieceType === 'k' && abs($fromIndex[1] - $toIndex[1]) === 2) {
+            $pgn .= ($toIndex[1] > $fromIndex[1]) ? 'O-O' : 'O-O-O';
+        } else {
+            // 3. 일반 이동
+            $targetPiece = $previousLogic->board[$toIndex[0]][$toIndex[1]];
+            $isCapture = $targetPiece !== null || ($pieceType === 'p' && $toCoord === $previousLogic->enPassantTarget);
+
+            // 3-1. 말 (폰 제외)
+            if ($pieceType !== 'p') {
+                $pgn .= strtoupper($pieceType);
+            }
+            
+            // 3-2. 모호성 해결 (생략 - 복잡도)
+            // TODO: 같은 종류의 다른 말이 같은 칸으로 이동 가능한 경우 출발 파일/랭크 추가 (예: Nge2)
+
+            // 3-3. 잡는 경우
+            if ($isCapture) {
+                if ($pieceType === 'p') {
+                    $pgn .= $fromCoord[0]; // 폰이 잡을 땐 출발 파일 (예: exd5)
+                }
+                $pgn .= 'x';
+            }
+
+            // 3-4. 도착 좌표
+            $pgn .= $toCoord;
+
+            // 3-5. 폰 승격
+            if ($promotionPiece) {
+                $pgn .= '=' . strtoupper($promotionPiece);
+            }
+        }
+
+        // 4. 체크/체크메이트
+        if ($this->isCheckmate()) {
+            $pgn .= '#';
+        } elseif ($this->isCheck()) {
+            $pgn .= '+';
+        }
+
+        return $pgn . ' ';
     }
 
     /**
@@ -437,6 +509,8 @@ class ChessLogic
         $this->currentTurn = $parts[1];
         $this->castlingAvailability = $parts[2];
         $this->enPassantTarget = ($parts[3] === '-') ? null : $parts[3];
+        $this->halfmoveClock = (int)($parts[4] ?? 0);
+        $this->fullmoveNumber = (int)($parts[5] ?? 1);
 
         // ... (나머지 부분 파싱 로직은 나중에 추가)
 
@@ -491,7 +565,7 @@ class ChessLogic
         $fen .= ' ' . $this->currentTurn;
         $fen .= ' ' . $this->castlingAvailability;
         $fen .= ' ' . ($this->enPassantTarget ?? '-');
-        $fen .= ' 0 1'; // 50수 규칙, 턴 카운터는 단순화
+        $fen .= ' ' . $this->halfmoveClock . ' ' . $this->fullmoveNumber;
 
         return $fen;
     }
@@ -554,8 +628,19 @@ class ChessLogic
         // 3. 상태 업데이트
         // 3-1. 턴 변경
         $newLogic->currentTurn = ($this->currentTurn === 'w') ? 'b' : 'w';
+        if ($newLogic->currentTurn === 'w') {
+            $newLogic->fullmoveNumber++;
+        }
+
+        // 3-2. 50수 규칙 카운터
+        $isCapture = $newLogic->board[$to[0]][$to[1]] !== null;
+        if (strtolower($piece) === 'p' || $isCapture) {
+            $newLogic->halfmoveClock = 0;
+        } else {
+            $newLogic->halfmoveClock++;
+        }
         
-        // 3-2. 앙파상 타겟 업데이트
+        // 3-3. 앙파상 타겟 업데이트
         if (strtolower($piece) === 'p' && abs($from[0] - $to[0]) === 2) {
             $newLogic->enPassantTarget = $this->indexToCoord(($from[0] + $to[0]) / 2, $from[1]);
         } else {

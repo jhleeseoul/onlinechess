@@ -62,9 +62,10 @@ class Game
      * @param string $result 'white_win', 'black_win', 'draw'
      * @param string $endReason 'checkmate', 'stalemate', 'resign' 등
      * @param string $fen 마지막 FEN 상태
+     * @param string|null $pgn 전체 PGN
      * @return bool
      */
-    public function updateGameResult(int $gameId, string $result, string $endReason, string $fen): bool
+    public function updateGameResult(int $gameId, string $result, string $endReason, string $fen, ?string $pgn = null): bool
     {
         $game = $this->getGameById($gameId);
         if (!$game) return false;
@@ -101,10 +102,10 @@ class Game
         try {
             $this->db->beginTransaction();
 
-            // 1. 게임 결과 및 최종 FEN 업데이트
-            $sqlGame = "UPDATE games SET result = :result, end_reason = :end_reason, fen = :fen, end_at = NOW() WHERE id = :id";
+            // 1. 게임 결과, 최종 FEN, PGN 업데이트
+            $sqlGame = "UPDATE games SET result = :result, end_reason = :end_reason, fen = :fen, pgn = :pgn, end_at = NOW() WHERE id = :id";
             $stmtGame = $this->db->prepare($sqlGame);
-            $stmtGame->execute(['result' => $result, 'end_reason' => $endReason, 'fen' => $fen, 'id' => $gameId]);
+            $stmtGame->execute(['result' => $result, 'end_reason' => $endReason, 'fen' => $fen, 'pgn' => $pgn, 'id' => $gameId]);
             
             // 2. 백 플레이어 점수 및 재화 업데이트
             $sqlWhite = "UPDATE users SET points = :points, coins = :coins WHERE id = :id";
