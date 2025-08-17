@@ -14,8 +14,8 @@ class User
         $this->db = Database::getInstance();
     }
 
-    /**
-     * 새로운 사용자를 생성합니다.
+        /**
+     * 새로운 사용자를 생성하고 기본 아이템을 지급합니다.
      * @param string $username
      * @param string $password
      * @param string $nickname
@@ -23,29 +23,51 @@ class User
      */
     public function create(string $username, string $password, string $nickname): int|false
     {
-        // 비밀번호 해싱 (절대 평문으로 저장하면 안됩니다!)
+        // 기본 아이템 ID (실제 서비스에서는 설정 파일 등에서 관리하는 것이 좋음)
+        $defaultProfileIconId = 1;
+        $defaultBoardSkinId = 2;
+        $defaultPieceSkinId = 3;
+
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = "INSERT INTO users (username, password, nickname) VALUES (:username, :password, :nickname)";
-
         try {
-            $stmt = $this->db->prepare($sql);
-            $stmt->bindValue(':username', $username);
-            $stmt->bindValue(':password', $hashedPassword);
-            $stmt->bindValue(':nickname', $nickname);
-            
-            $stmt->execute();
+            $this->db->beginTransaction();
 
-            return (int)$this->db->lastInsertId();
-        } catch (\PDOException $e) {
-            // 실제 서비스에서는 에러를 로깅해야 합니다.
-            // 여기서는 일단 false를 반환하여 실패를 알립니다.
-            // 에러 코드 23000은 UNIQUE 제약 조건 위반(중복된 username/nickname)입니다.
-            if ($e->getCode() === '23000') {
-                return false; 
+            // 1. users 테이블에 사용자 생성 (기본 아이템 ID 포함)
+            $sqlUser = "
+                INSERT INTO users (username, password, nickname, profile_icon_id, board_skin_id, piece_skin_id) 
+                VALUES (:username, :password, :nickname, :profile_icon_id, :board_skin_id, :piece_skin_id)
+            ";
+            $stmtUser = $this->db->prepare($sqlUser);
+            $stmtUser->execute([
+                ':username' => $username,
+                ':password' => $hashedPassword,
+                ':nickname' => $nickname,
+                ':profile_icon_id' => $defaultProfileIconId,
+                ':board_skin_id' => $defaultBoardSkinId,
+                ':piece_skin_id' => $defaultPieceSkinId
+            ]);
+            
+            $userId = (int)$this->db->lastInsertId();
+
+            // 2. user_items 테이블에 기본 아이템 소유 관계 추가
+            $defaultItems = [$defaultProfileIconId, $defaultBoardSkinId, $defaultPieceSkinId];
+            $sqlItems = "INSERT INTO user_items (user_id, item_id) VALUES (:userId, :itemId)";
+            $stmtItems = $this->db->prepare($sqlItems);
+            $stmtItems->bindValue(':userId', $userId, PDO::PARAM_INT);
+
+            foreach ($defaultItems as $itemId) {
+                $stmtItems->bindValue(':itemId', $itemId, PDO::PARAM_INT);
+                $stmtItems->execute();
             }
-            // 그 외 다른 DB 에러
-            throw $e;
+
+            $this->db->commit();
+            return $userId;
+
+        } catch (\PDOException $e) {
+            $this->db->rollBack();
+            // 로깅 필요
+            return false;
         }
     }
 
