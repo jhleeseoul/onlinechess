@@ -63,14 +63,41 @@ class User
         return $stmt->fetch();
     }
 
-    /**
-     * ID로 사용자를 찾습니다.
+        /**
+     * ID로 사용자를 찾습니다. (장착한 아이템 정보 포함)
      * @param int $id
      * @return array|false 사용자 정보 또는 찾지 못했을 경우 false
      */
     public function findById(int $id): array|false
     {
-        $sql = "SELECT * FROM users WHERE id = :id";
+        /*
+         * LEFT JOIN을 사용한 이유:
+         * 만약 유저가 아직 아무 아이템도 장착하지 않았다면 (e.g., profile_icon_id가 NULL),
+         * 일반적인 INNER JOIN을 사용하면 해당 유저 정보가 아예 조회되지 않을 수 있습니다.
+         * LEFT JOIN은 users 테이블을 기준으로, 일치하는 아이템이 없더라도 유저 정보는 항상 반환하고
+         * 아이템 관련 필드는 NULL로 채워줍니다.
+         */
+        $sql = "
+            SELECT 
+                u.id, u.username, u.nickname, u.points, u.coins, u.password,
+                u.profile_icon_id,
+                u.board_skin_id,
+                u.piece_skin_id,
+                icon.asset_path AS profile_icon_path,
+                board.asset_path AS board_skin_path,
+                piece.asset_path AS piece_skin_path
+            FROM 
+                users u
+            LEFT JOIN 
+                items icon ON u.profile_icon_id = icon.id
+            LEFT JOIN 
+                items board ON u.board_skin_id = board.id
+            LEFT JOIN 
+                items piece ON u.piece_skin_id = piece.id
+            WHERE 
+                u.id = :id
+        ";
+
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
@@ -78,24 +105,26 @@ class User
     }
 
     /**
-     * 랭킹/리더보드를 조회합니다.
+     * 랭킹/리더보드를 조회합니다. (프로필 아이콘 포함)
      * @param int $limit 조회할 사용자 수
      * @return array
      */
     public function getLeaderboard(int $limit = 100): array
     {
-        // 랭크(순위)를 동적으로 계산하기 위해 변수 사용 (@rank)
         $sql = "
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY points DESC) AS `rank`,
-                id,
-                nickname,
-                points
+                ROW_NUMBER() OVER (ORDER BY u.points DESC) AS `rank`,
+                u.id,
+                u.nickname,
+                u.points,
+                i.asset_path AS profile_icon_path
             FROM 
-                users
+                users u
+            LEFT JOIN 
+                items i ON u.profile_icon_id = i.id AND i.item_type = 'profile_icon'
             ORDER BY 
-                points DESC
-            LIMIT :limit;
+                u.points DESC
+            LIMIT :limit
         ";
         
         $stmt = $this->db->prepare($sql);

@@ -178,8 +178,8 @@ class Game
         return $stmt->fetchAll();
     }
 
-    /**
-     * 특정 게임의 상세 결과 정보를 조회합니다.
+        /**
+     * 특정 게임의 상세 결과 정보를 조회합니다. (플레이어 아이콘 포함)
      * @param int $gameId
      * @return array|false
      */
@@ -193,16 +193,22 @@ class Game
                 g.end_at,
                 g.white_player_id,
                 g.black_player_id,
-                u_white.nickname as white_nickname,
-                u_white.points as white_current_points,
-                u_black.nickname as black_nickname,
-                u_black.points as black_current_points
+                u_white.nickname AS white_nickname,
+                u_white.points AS white_current_points,
+                icon_white.asset_path AS white_icon_path,
+                u_black.nickname AS black_nickname,
+                u_black.points AS black_current_points,
+                icon_black.asset_path AS black_icon_path
             FROM
                 games g
             JOIN
                 users u_white ON g.white_player_id = u_white.id
             JOIN
                 users u_black ON g.black_player_id = u_black.id
+            LEFT JOIN
+                items icon_white ON u_white.profile_icon_id = icon_white.id
+            LEFT JOIN
+                items icon_black ON u_black.profile_icon_id = icon_black.id
             WHERE
                 g.id = :gameId AND g.result != 'pending'
         ";

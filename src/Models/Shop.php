@@ -16,7 +16,7 @@ class Shop
 
     public function getAllItems(): array
     {
-        $stmt = $this->db->query("SELECT id, item_type, name, description, price FROM items");
+        $stmt = $this->db->query("SELECT id, item_type, name, description, price, asset_path FROM items");
         return $stmt->fetchAll();
     }
 
