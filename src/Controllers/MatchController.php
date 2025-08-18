@@ -11,7 +11,7 @@ class MatchController
 {
     private const MATCHMAKING_QUEUE = 'matchmaking_queue';
 
-        public function requestRankMatch(): void
+    public function requestRankMatch(): void
     {
         $authedUser = Auth::getAuthUser();
         if ($authedUser === null) {
@@ -77,20 +77,41 @@ class MatchController
             ]);
             $redis->expire($redisKey, 3600);
 
-            http_response_code(200);
-            echo json_encode([
+            // 응답 데이터 미리 준비
+            $myMatchData = [
                 'status' => 'matched',
                 'message' => 'Match found!',
                 'game_id' => $gameId,
                 'my_color' => $isWhite ? 'white' : 'black',
-                // 상대방 정보를 ID 대신 객체로 전달
                 'opponent' => [
                     'id' => $opponentInfo['id'],
                     'nickname' => $opponentInfo['nickname'],
                     'points' => $opponentInfo['points'],
                     'profile_icon_path' => $opponentInfo['profile_icon_path']
                 ]
-            ]);
+            ];
+
+            $opponentMatchData = [
+                'status' => 'matched',
+                'message' => 'Match found!',
+                'game_id' => $gameId,
+                'my_color' => !$isWhite ? 'white' : 'black',
+                'opponent' => [
+                    'id' => $myInfo['id'],
+                    'nickname' => $myInfo['nickname'],
+                    'points' => $myInfo['points'],
+                    'profile_icon_path' => $myInfo['profile_icon_path']
+                ]
+            ];
+
+            // 1. 대기 중이던 상대방에게 알림 보내기
+            $opponentListKey = "match_wait_list:{$opponentId}";
+            $redis->lPush($opponentListKey, json_encode($opponentMatchData));
+            $redis->expire($opponentListKey, 60); // 1분 유지
+
+            // 2. 지금 요청한 나에게는 바로 응답 보내기
+            http_response_code(200);
+            echo json_encode($myMatchData);
 
         } else {
             // 3. 매칭 실패 (상대가 없음) - 이전과 동일
@@ -104,6 +125,9 @@ class MatchController
         }
     }
 
+        /**
+     * 매칭이 성사될 때까지 대기합니다. (롱 폴링)
+     */
     public function waitForMatch(): void
     {
         $authedUser = Auth::getAuthUser();
@@ -112,20 +136,22 @@ class MatchController
             echo json_encode(['message' => 'Authentication required.']);
             return;
         }
-        
+
         $redis = Database::getRedisInstance();
-        // 각 유저별로 매칭 결과를 받을 리스트 키 생성
-        $userMatchResultList = "user_match_result:{$authedUser->userId}";
-        error_log("User {$authedUser->userId} waiting for match on list: {$userMatchResultList} at " . date('Y-m-d H:i:s'));
-        
-        // 30초 동안 내 매칭 결과 리스트에 데이터가 들어오길 대기
-        $message = $redis->brPop([$userMatchResultList], 30);
-        
+        $myListKey = "match_wait_list:{$authedUser->userId}";
+
+        // BRPOP으로 내 리스트에 데이터가 들어올 때까지 최대 30초 대기
+        $message = $redis->brPop([$myListKey], 30);
+
         if ($message) {
-            error_log("User {$authedUser->userId} received match message at " . date('Y-m-d H:i:s') . ": " . $message[1]); 
-        } else {
+            // $message[1]에 매칭 성공 데이터가 JSON 문자열로 들어있음
+            $matchData = json_decode($message[1], true);
             http_response_code(200);
-            echo json_encode(['status' => 'timeout']);
+            echo json_encode($matchData);
+        } else {
+            // 30초 동안 매칭되지 않으면 타임아웃
+            http_response_code(200);
+            echo json_encode(['status' => 'pending', 'message' => 'Still searching...']);
         }
     }
 }
