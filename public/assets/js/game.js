@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================== 게임 상태 변수 ==================
     let gameState = null;
     let myColor = null;
+    let selectedPiece = null; // 현재 선택된 말 DOM 요소
+    let validMoves = [];      // 선택된 말의 유효한 이동 경로 배열
 
     // ================== 함수 ==================
 
@@ -90,6 +92,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * 유효한 이동 경로를 보드 위에 시각적으로 표시
+     */
+    function showValidMoves(moves) {
+        clearHighlights(); // 기존 하이라이트 제거
+        moves.forEach(move => {
+            const index = coordToIndex(move);
+            if (index) {
+                const highlight = document.createElement('div');
+                highlight.classList.add('valid-move-highlight');
+                
+                let displayRow = index.row;
+                let displayCol = index.col;
+                if (myColor === 'b') {
+                    displayRow = 7 - index.row;
+                    displayCol = 7 - index.col;
+                }
+
+                highlight.style.top = `${displayRow * 60}px`;
+                highlight.style.left = `${displayCol * 60}px`;
+                boardContainer.appendChild(highlight);
+            }
+        });
+    }
+
+    /**
+     * 모든 하이라이트를 보드에서 제거
+     */
+    function clearHighlights() {
+        document.querySelectorAll('.valid-move-highlight').forEach(el => el.remove());
+    }
+    
+    /**
+     * 체스 좌표('e4')를 인덱스({row: 4, col: 4})로 변환
+     */
+    function coordToIndex(coord) {
+        const col = coord.charCodeAt(0) - 'a'.charCodeAt(0);
+        const row = 8 - parseInt(coord[1]);
+        return { row, col };
+    }
+    
+    /**
+     * 인덱스를 체스 좌표로 변환
+     */
+    function indexToCoord(row, col) {
+        return `${String.fromCharCode('a'.charCodeAt(0) + col)}${8 - row}`;
+    }
+
+    /**
      * 말 문자(p, R, n)를 파일 이름(bP, wR, bN)으로 변환
      */
     function getPieceFileName(pieceChar) {
@@ -139,7 +189,90 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = './lobby.html';
         }
     }
+    
+    // ================== 이벤트 처리 함수 ==================
+
+    /**
+     * 보드 클릭 이벤트를 총괄 처리
+     */
+    async function onBoardClick(event) {
+        const target = event.target;
+        
+        // 하이라이트된 이동 경로를 클릭했을 때
+        if (target.classList.contains('valid-move-highlight')) {
+            const toRow = target.style.top.replace('px', '') / 60;
+            const toCol = target.style.left.replace('px', '') / 60;
+
+            let logicalRow = toRow;
+            let logicalCol = toCol;
+            if (myColor === 'b') {
+                logicalRow = 7 - toRow;
+                logicalCol = 7 - toCol;
+            }
+            
+            const fromCoord = indexToCoord(parseInt(selectedPiece.dataset.row), parseInt(selectedPiece.dataset.col));
+            const toCoord = indexToCoord(logicalRow, logicalCol);
+
+            await handleMove(fromCoord, toCoord);
+            return;
+        }
+
+        // 말을 클릭했을 때
+        if (target.classList.contains('chess-piece')) {
+            const pieceChar = target.dataset.piece;
+            const isMyPiece = (myColor === 'w' && pieceChar === pieceChar.toUpperCase()) ||
+                              (myColor === 'b' && pieceChar === pieceChar.toLowerCase());
+            
+            if (isMyPiece) {
+                // 이미 선택된 말과 같은 말을 클릭하면 선택 취소
+                if (selectedPiece === target) {
+                    selectedPiece = null;
+                    clearHighlights();
+                } else {
+                    selectedPiece = target;
+                    const fromRow = parseInt(target.dataset.row);
+                    const fromCol = parseInt(target.dataset.col);
+                    const coord = indexToCoord(fromRow, fromCol);
+                    
+                    // 서버에 유효한 수 요청
+                    try {
+                        const moves = await request(`/api/game/${gameId}/move/${coord}`);
+                        validMoves = moves;
+                        showValidMoves(validMoves);
+                    } catch (error) {
+                        console.error('유효한 수를 가져오는 데 실패:', error);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 서버에 이동 요청을 보내고 UI를 업데이트
+     */
+    async function handleMove(from, to) {
+        try {
+            const moveData = { from, to };
+            // TODO: 폰 승격 처리 로직 추가
+            
+            const response = await request(`/api/game/${gameId}/move`, 'POST', moveData);
+            
+            // UI 즉시 업데이트
+            renderBoard(response.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
+            selectedPiece = null;
+            clearHighlights();
+            
+            // TODO: 상대방 턴이므로 롱 폴링 시작
+
+        } catch (error) {
+            alert(`이동 실패: ${error.message}`);
+            selectedPiece = null;
+            clearHighlights();
+        }
+    }
 
     // ================== 초기 실행 ==================
+    boardContainer.addEventListener('click', onBoardClick); // 이벤트 리스너 등록
     initializeGame();
+
 });

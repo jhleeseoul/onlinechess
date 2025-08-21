@@ -223,3 +223,15 @@ a {
 .game-controls {
     margin-top: 20px;
 }
+
+/* Move Highlight Styles */
+.valid-move-highlight {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background-color: rgba(20, 80, 200, 0.4);
+    border-radius: 50%;
+    box-sizing: border-box;
+    pointer-events: all; /* 클릭 이벤트를 받을 수 있도록 함 */
+    cursor: pointer;
+}
