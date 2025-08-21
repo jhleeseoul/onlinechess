@@ -1,18 +1,5 @@
 <?php
 
-// CORS (Cross-Origin Resource Sharing) 헤더 설정
-// 로컬 개발 환경(VSCode Live Server)에서의 API 요청을 허용합니다.
-header("Access-Control-Allow-Origin: http://127.0.0.1:5500"); // Live Server의 기본 주소
-header("Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    
-// OPTIONS 요청에 대한 사전 처리 (Preflight Request)
-// 브라우저는 실제 요청을 보내기 전에 OPTIONS 메소드로 서버가 요청을 허용하는지 먼저 확인합니다.
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
 // 1. Composer 오토로더 불러오기
 require_once __DIR__ . '/../vendor/autoload.php';
 
