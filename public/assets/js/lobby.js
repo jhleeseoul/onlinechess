@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const navButtons = document.querySelectorAll('.lobby-nav button');
     const contentArea = document.getElementById('content-area');
     const views = document.querySelectorAll('.view');
+    const startMatchmakingButton = document.getElementById('start-matchmaking-button');
+    const matchmakingStatus = document.getElementById('matchmaking-status');
 
     // ================== 초기화 함수 ==================
     function initializeLobby() {
@@ -186,6 +188,77 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = './index.html';
     });
 
+    // 매치메이킹 시작 버튼 클릭
+    startMatchmakingButton.addEventListener('click', startMatchmaking);
+    
+
+    // ================== 매치메이킹 관련 함수 ==================
+    let isMatchmaking = false;
+
+    async function startMatchmaking() {
+        if (isMatchmaking) return;
+        isMatchmaking = true;
+
+        startMatchmakingButton.disabled = true;
+        matchmakingStatus.innerHTML = '<p>상대방을 찾는 중입니다...</p>';
+
+        try {
+            const response = await request('/api/match/rank', 'POST');
+
+            if (response.status === 'matched') {
+                handleMatchSuccess(response);
+            } else if (response.status === 'pending') {
+                await waitForMatch();
+            }
+        } catch (error) {
+            matchmakingStatus.innerHTML = `<p class="error-text">매칭 중 오류 발생: ${error.message}</p>`;
+            resetMatchmakingUI();
+        }
+    }
+
+    async function waitForMatch() {
+        try {
+            const response = await request('/api/match/wait', 'GET');
+            
+            if (response.status === 'matched') {
+                handleMatchSuccess(response);
+            } else if (response.status === 'pending') {
+                // 타임아웃 발생 시, 다시 대기 요청
+                await waitForMatch();
+            }
+        } catch (error) {
+            matchmakingStatus.innerHTML = `<p class="error-text">매칭 대기 중 오류 발생: ${error.message}</p>`;
+            resetMatchmakingUI();
+        }
+    }
+
+    function handleMatchSuccess(matchData) {
+        const opponent = matchData.opponent;
+        matchmakingStatus.innerHTML = `
+            <div class="opponent-info">
+                <h3>매치 성공!</h3>
+                <img src="${API_BASE_URL}${opponent.profile_icon_path}" alt="상대 아이콘">
+                <p><strong>${opponent.nickname}</strong> (${opponent.points}점) 님과 대결합니다.</p>
+                <p>잠시 후 게임을 시작합니다... <span id="countdown">5</span></p>
+            </div>
+        `;
+
+        let countdown = 5;
+        const countdownElement = document.getElementById('countdown');
+        const interval = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+            if (countdown === 0) {
+                clearInterval(interval);
+                window.location.href = `./game.html?gameId=${matchData.game_id}`;
+            }
+        }, 1000);
+    }
+
+    function resetMatchmakingUI() {
+        isMatchmaking = false;
+        startMatchmakingButton.disabled = false;
+    }
     // ================== 초기 실행 ==================
     initializeLobby();
 });

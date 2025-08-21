@@ -149,3 +149,26 @@ a {
     height: 60px;
     object-fit: cover;
 }
+/* Matchmaking Status Styles */
+.matchmaking-status {
+    margin-top: 2rem;
+    padding: 1rem;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    min-height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.matchmaking-status .opponent-info {
+    text-align: center;
+}
+
+.matchmaking-status .opponent-info img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+}
