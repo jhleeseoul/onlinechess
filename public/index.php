@@ -47,6 +47,9 @@ $router->addRoute('GET', 'api/match/wait', [App\Controllers\MatchController::cla
 
 // 게임 관련 API 라우트
 
+// 게임 보드 현황 API 라우트
+$router->addRoute('GET', 'api/game/{gameId}/status', [App\Controllers\GameController::class, 'getGameStatus']);
+
 // 게임 시작 및 이동 API 라우트
 $router->addRoute('POST', 'api/game/{gameId}/move', [App\Controllers\GameController::class, 'makeMove']);
 

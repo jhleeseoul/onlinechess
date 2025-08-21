@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Models\ChessLogic;
 use App\Models\Game;
+use App\Models\User;
 use App\Utils\Auth;
 
 class GameController
@@ -340,6 +341,37 @@ class GameController
                 http_response_code(400);
                 echo json_encode(['message' => 'Invalid action. Use "offer", "accept", or "decline".']);
         }
+    }
+
+    public function getGameStatus(int $gameId): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        // getGameData 헬퍼를 재사용하여 권한 체크 및 데이터 조회
+        $gameData = $this->getGameData($gameId, $authedUser->userId);
+        if (!$gameData) return;
+
+        // 추가적으로 양쪽 플레이어의 상세 정보도 함께 보내줌
+        $userModel = new User();
+        $whitePlayer = $userModel->findById((int)$gameData['white_player_id']);
+        $blackPlayer = $userModel->findById((int)$gameData['black_player_id']);
+
+        unset($whitePlayer['password']);
+        unset($blackPlayer['password']);
+        
+        $response = [
+            'game_data' => $gameData,
+            'white_player' => $whitePlayer,
+            'black_player' => $blackPlayer
+        ];
+
+        http_response_code(200);
+        echo json_encode($response);
     }
 
     public function getValidMoves(int $gameId, string $coord): void
