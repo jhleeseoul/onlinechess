@@ -19,7 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================== DOM 요소 ==================
     const boardContainer = document.getElementById('board-container');
     const gameStatusMessage = document.getElementById('game-status-message');
-    // ... (나머지 DOM 요소는 다음 단계에서)
+    const drawButton = document.getElementById('draw-button');
+    const resignButton = document.getElementById('resign-button');
 
     // ================== 게임 상태 변수 ==================
     let gameState = null;
@@ -183,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 보드 렌더링 (스킨 경로 전달)
             renderBoard(gameState.fen, myBoardSkinPath, myPieceSkinPath);
 
-            // TODO: 내 턴이면 게임 시작, 상대 턴이면 롱 폴링 시작
             updateTurnAndState();
             
         } catch (error) {
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * 서버로부터 받은 모든 업데이트를 처리하는 중앙 함수 (수정됨)
      */
     function handleServerUpdate(data) {
-        console.log("Server update received:", data); // <<--- 디버깅을 위한 로그 추가
+        console.log("Server update received:", data); 
 
         // 1. FEN 업데이트가 있으면 보드를 새로 그림
         if (data.fen) {
@@ -266,15 +266,74 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // 2. 기타 이벤트 처리 (무승부, 기권 등)
-        if (data.type === 'draw_offer') { /* ... */ }
-        if (data.status === 'finished') { /* ... */ }
+        // 2. 기타 이벤트 처리
+        switch (data.type) {
+            case 'draw_offer':
+                console.log("Draw offer received:", data);
+                const offeredBy = data.offered_by === myColor ? '당신' : '상대방';
+                if (offeredBy === '상대방') {
+                    if (confirm(`상대방이 무승부를 제안했습니다. 수락하시겠습니까?`)) {
+                        request(`/api/game/${gameId}/draw`, 'POST', { action: 'accept' });
+                    } else {
+                        request(`/api/game/${gameId}/draw`, 'POST', { action: 'decline' });
+                    }
+                }
+                break;
+            case 'draw_accepted':
+                handleGameEnd({ result: 'draw', reason: 'agreement' });
+                return; // 게임 종료이므로 여기서 함수 종료
+            case 'draw_declined':
+                alert('무승부 제안이 거절되었습니다.');
+                break;
+        }
 
-        // 3. 모든 업데이트 처리 후, UI 상태를 최종적으로 갱신
+        // 3. 게임 종료 이벤트 처리 (기권, 체크메이트 등)
+        if (data.status === 'finished') {
+            handleGameEnd(data);
+            return; // 게임 종료
+        }
+
+        // 4. 모든 업데이트 처리 후, 턴 상태를 다시 확인하여 흐름을 이어감
         updateTurnAndState();
         
     }
-    
+
+    /**
+     * 게임 종료를 처리하는 함수
+     */
+    function handleGameEnd(resultData) {
+        gameState.status = 'finished'; // 게임 상태를 '종료'로 변경
+        
+        let endMessage = '';
+        const myResult = (myColor === 'w' && resultData.result === 'white_win') || 
+                         (myColor === 'b' && resultData.result === 'black_win')
+                         ? '승리' : (resultData.result === 'draw' ? '무승부' : '패배');
+
+        switch (myResult) {
+            case '승리':
+                endMessage = `승리했습니다! (${resultData.reason})`;
+                break;
+            case '패배':
+                endMessage = `패배했습니다. (${resultData.reason})`;
+                break;
+            case '무승부':
+                endMessage = `무승부입니다. (${resultData.reason})`;
+                break;
+        }
+
+        // 컨트롤 버튼 비활성화
+        drawButton.disabled = true;
+        resignButton.disabled = true;
+
+        gameStatusMessage.textContent = endMessage;
+        alert(endMessage + "\n\n5초 후 로비로 돌아갑니다.");
+
+        // 5초 후 로비로 리디렉션
+        setTimeout(() => {
+            window.location.href = './lobby.html';
+        }, 5000);
+    }
+
     // ================== 이벤트 처리 함수 ==================
 
     /**
@@ -355,8 +414,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * 무승부 제안 버튼 클릭 처리
+     */
+    async function onDrawButtonClick() {
+        if (confirm("정말로 상대방에게 무승부를 제안하시겠습니까?")) {
+            try {
+                const response = await request(`/api/game/${gameId}/draw`, 'POST', { action: 'offer' });
+                gameStatusMessage.textContent = response.message;
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * 기권 버튼 클릭 처리
+     */
+    async function onResignButtonClick() {
+        if (confirm("정말로 기권하시겠습니까? 게임에서 패배 처리됩니다.")) {
+            try {
+                // 기권 API는 성공 시 게임 종료 이벤트를 롱 폴링으로 보내주므로,
+                // 여기서는 별도의 화면 전환 없이 요청만 보냄.
+                await request(`/api/game/${gameId}/resign`, 'POST');
+            } catch (error) {
+                alert(`오류: ${error.message}`);
+            }
+        }
+    }
+
     // ================== 초기 실행 ==================
     boardContainer.addEventListener('click', onBoardClick); // 이벤트 리스너 등록
+    drawButton.addEventListener('click', onDrawButtonClick);
+    resignButton.addEventListener('click', onResignButtonClick);
     initializeGame();
 
 });
