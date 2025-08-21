@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>온라인 체스 - 로비</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <div class="lobby-container">
+        <header class="lobby-header">
+            <div id="user-profile">
+                <img id="profile-icon" src="" alt="icon" class="profile-icon">
+                <span id="user-nickname"></span>
+            </div>
+            <div id="user-resources">
+                <span>Coins: <span id="user-coins"></span></span>
+                <span>Points: <span id="user-points"></span></span>
+            </div>
+            <button id="logout-button">로그아웃</button>
+        </header>
+
+        <main class="lobby-main">
+            <nav class="lobby-nav">
+                <button data-view="matchmaking-view">매치 찾기</button>
+                <button data-view="my-info-view">내 정보</button>
+                <button data-view="shop-view">상점</button>
+                <button data-view="leaderboard-view">리더보드</button>
+            </nav>
+
+            <section id="content-area" class="content-area">
+                <!-- 매치메이킹 뷰 -->
+                <div id="matchmaking-view" class="view">
+                    <h2>랭크 게임</h2>
+                    <p>랭크 게임을 시작하여 실력을 증명하세요!</p>
+                    <button id="start-matchmaking-button">랭크 매치 시작</button>
+                </div>
+                <!-- 내 정보 뷰 (처음엔 숨겨져 있음) -->
+                <div id="my-info-view" class="view hidden">
+                    <h2>내 정보</h2>
+                    <div id="my-matches-content"></div>
+                    <div id="my-inventory-content"></div>
+                </div>
+                <!-- 상점 뷰 (처음엔 숨겨져 있음) -->
+                <div id="shop-view" class="view hidden">
+                    <h2>상점</h2>
+                    <div id="shop-items-content"></div>
+                </div>
+                <!-- 리더보드 뷰 (처음엔 숨겨져 있음) -->
+                <div id="leaderboard-view" class="view hidden">
+                    <h2>리더보드</h2>
+                    <div id="leaderboard-content"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="../assets/js/api.js"></script>
+    <script src="../assets/js/lobby.js"></script>
+</body>
+</html>
