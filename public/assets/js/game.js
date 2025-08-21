@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================== DOM 요소 ==================
     const boardContainer = document.getElementById('board-container');
+    const gameStatusMessage = document.getElementById('game-status-message');
     // ... (나머지 DOM 요소는 다음 단계에서)
 
     // ================== 게임 상태 변수 ==================
@@ -183,10 +184,71 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBoard(gameState.fen, myBoardSkinPath, myPieceSkinPath);
 
             // TODO: 내 턴이면 게임 시작, 상대 턴이면 롱 폴링 시작
+            updateTurnAndState();
             
         } catch (error) {
             alert(`게임 정보를 불러오는 데 실패했습니다: ${error.message}`);
             window.location.href = './lobby.html';
+        }
+    }
+
+    /**
+     * 턴 상태를 업데이트하고, 턴에 따라 다음 행동을 결정
+     */
+    function updateTurnAndState() {
+        const isMyTurn = (myColor === gameState.current_turn);
+
+        if (gameState.status === 'finished') {
+            // 게임 종료 처리 (나중에 handleGameEnd에서)
+            return;
+        }
+
+        if (isMyTurn) {
+            gameStatusMessage.textContent = "당신의 턴입니다.";
+            boardContainer.style.borderColor = 'gold'; // 내 턴임을 시각적으로 표시
+        } else {
+            gameStatusMessage.textContent = "상대방의 턴입니다...";
+            boardContainer.style.borderColor = '#333';
+            waitForOpponentMove(); // 상대방의 수를 기다리는 롱 폴링 시작
+        }
+    }
+
+    /**
+     * 롱 폴링으로 상대방의 수를 기다림
+     */
+    async function waitForOpponentMove() {
+        try {
+            const response = await request(`/api/game/${gameId}/wait-for-move`);
+            
+            if (response.status === 'updated' && response.data) {
+                // 새로운 FEN으로 보드 업데이트
+                if (response.data.fen) {
+                    gameState.fen = response.data.fen;
+                    // gameState.current_turn도 업데이트 필요
+                    const fenTurn = response.data.fen.split(' ')[1];
+                    gameState.current_turn = fenTurn;
+                    renderBoard(gameState.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
+                }
+                
+                // 기타 이벤트 처리 (무승부 제안 등)
+                if (response.data.type === 'draw_offer') {
+                    const offeredBy = response.data.offered_by === 'w' ? '백' : '흑';
+                    if (confirm(`${offeredBy} 측에서 무승부를 제안했습니다. 수락하시겠습니까?`)) {
+                        // TODO: 무승부 수락 API 호출
+                    } else {
+                        // TODO: 무승부 거절 API 호출
+                    }
+                }
+
+                updateTurnAndState(); // 상태 업데이트 후 다시 턴 확인
+            } else if (response.status === 'timeout') {
+                // 타임아웃 시 재귀적으로 다시 호출
+                waitForOpponentMove();
+            }
+
+        } catch (error) {
+            gameStatusMessage.textContent = `연결 오류: ${error.message}`;
+            // 몇 초 후 다시 시도하는 로직을 추가할 수 있음
         }
     }
     
@@ -257,12 +319,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const response = await request(`/api/game/${gameId}/move`, 'POST', moveData);
             
-            // UI 즉시 업데이트
+            // UI 즉시 업데이트 및 상태 변경
+            gameState.fen = response.fen;
+            gameState.current_turn = response.fen.split(' ')[1]; // fen에서 턴 정보 파싱
             renderBoard(response.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
             selectedPiece = null;
             clearHighlights();
             
             // TODO: 상대방 턴이므로 롱 폴링 시작
+            updateTurnAndState();
 
         } catch (error) {
             alert(`이동 실패: ${error.message}`);

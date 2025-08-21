@@ -198,9 +198,11 @@ a {
 /* Game Page Styles */
 
 .board-container {
-    position: relative; /* 자식 요소들의 absolute 위치 기준점 */
+    position: relative;
     width: 480px;
     height: 480px;
+    border: 4px solid #333; /* 테두리를 더 두껍게 */
+    transition: border-color 0.5s ease; /* 색상 변경 시 부드러운 전환 효과 */
 }
 
 .board-background {
