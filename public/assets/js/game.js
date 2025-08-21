@@ -213,34 +213,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /**
-     * 롱 폴링으로 상대방의 수를 기다림
+        /**
+     * 롱 폴링으로 상대방의 이벤트를 기다림 (수정된 버전)
      */
     async function waitForOpponentMove() {
+        // 내 턴이 아니거나 게임이 끝나지 않았을 때만 실행
+        if (myColor === gameState.current_turn || gameState.status === 'finished') {
+            return;
+        }
+
         try {
             const response = await request(`/api/game/${gameId}/wait-for-move`);
             
+            // 응답 처리
             if (response.status === 'updated' && response.data) {
-                // 새로운 FEN으로 보드 업데이트
-                if (response.data.fen) {
-                    gameState.fen = response.data.fen;
-                    // gameState.current_turn도 업데이트 필요
-                    const fenTurn = response.data.fen.split(' ')[1];
-                    gameState.current_turn = fenTurn;
-                    renderBoard(gameState.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
-                }
-                
-                // 기타 이벤트 처리 (무승부 제안 등)
-                if (response.data.type === 'draw_offer') {
-                    const offeredBy = response.data.offered_by === 'w' ? '백' : '흑';
-                    if (confirm(`${offeredBy} 측에서 무승부를 제안했습니다. 수락하시겠습니까?`)) {
-                        // TODO: 무승부 수락 API 호출
-                    } else {
-                        // TODO: 무승부 거절 API 호출
-                    }
-                }
-
-                updateTurnAndState(); // 상태 업데이트 후 다시 턴 확인
+                handleServerUpdate(response.data);
             } else if (response.status === 'timeout') {
                 // 타임아웃 시 재귀적으로 다시 호출
                 waitForOpponentMove();
@@ -248,8 +235,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             gameStatusMessage.textContent = `연결 오류: ${error.message}`;
-            // 몇 초 후 다시 시도하는 로직을 추가할 수 있음
+            // 몇 초 후 다시 시도
+            setTimeout(waitForOpponentMove, 3000);
         }
+    }
+
+    /**
+     * 서버로부터 받은 모든 업데이트를 처리하는 중앙 함수
+     */
+    function handleServerUpdate(data) {
+        // 1. FEN 업데이트가 있으면 보드를 새로 그림
+        if (data.fen) {
+            gameState.fen = data.fen;
+            gameState.current_turn = data.fen.split(' ')[1]; // FEN에서 최신 턴 정보 파싱
+            renderBoard(gameState.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
+            
+            if (data.isCheck) {
+                alert("체크!"); // 간단한 체크 알림
+            }
+        }
+        
+        // 2. 무승부 제안 이벤트 처리
+        if (data.type === 'draw_offer') {
+            const offeredBy = data.offered_by === 'w' ? '백' : '흑';
+            if (confirm(`${offeredBy} 측에서 무승부를 제안했습니다. 수락하시겠습니까?`)) {
+                request(`/api/game/${gameId}/draw`, 'POST', { action: 'accept' });
+            } else {
+                request(`/api/game/${gameId}/draw`, 'POST', { action: 'decline' });
+            }
+        }
+
+        // 3. 게임 종료 이벤트 처리
+        if (data.status === 'finished') {
+            handleGameEnd(data);
+            return; // 게임이 끝났으므로 더 이상 턴을 넘길 필요 없음
+        }
+
+        // 4. 모든 업데이트 처리 후, 턴 상태를 다시 확인하여 흐름을 이어감
+        updateTurnAndState();
     }
     
     // ================== 이벤트 처리 함수 ==================
@@ -319,15 +342,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const response = await request(`/api/game/${gameId}/move`, 'POST', moveData);
             
-            // UI 즉시 업데이트 및 상태 변경
-            gameState.fen = response.fen;
-            gameState.current_turn = response.fen.split(' ')[1]; // fen에서 턴 정보 파싱
-            renderBoard(response.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
             selectedPiece = null;
             clearHighlights();
             
-            // TODO: 상대방 턴이므로 롱 폴링 시작
-            updateTurnAndState();
+            // 서버 응답을 중앙 처리 함수로 넘김
+            handleServerUpdate({ fen: response.fen, isCheck: response.isCheck });
 
         } catch (error) {
             alert(`이동 실패: ${error.message}`);
