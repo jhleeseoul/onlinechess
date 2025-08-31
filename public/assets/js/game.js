@@ -212,8 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             gameStatusMessage.textContent = "상대방의 턴입니다...";
             boardContainer.style.borderColor = '#333';
-            // 롱 폴링은 여기서 다시 시작하지 않고, 이전 호출이 끝나면 자연스럽게 이어지도록 함
-            // 대신, 초기화 시점과 내 턴이 끝나는 시점에만 호출
             waitForOpponentMove();
         }
     }
@@ -432,11 +430,16 @@ document.addEventListener('DOMContentLoaded', () => {
      * 기권 버튼 클릭 처리
      */
     async function onResignButtonClick() {
+        
         if (confirm("정말로 기권하시겠습니까? 게임에서 패배 처리됩니다.")) {
             try {
                 // 기권 API는 성공 시 게임 종료 이벤트를 롱 폴링으로 보내주므로,
-                // 여기서는 별도의 화면 전환 없이 요청만 보냄.
                 await request(`/api/game/${gameId}/resign`, 'POST');
+                
+                // API 호출 성공 시, 나 자신도 즉시 게임 종료 처리
+                const myResult = (myColor === 'w') ? 'black_win' : 'white_win';
+                handleGameEnd({ result: myResult, reason: 'resign' });
+
             } catch (error) {
                 alert(`오류: ${error.message}`);
             }

@@ -237,3 +237,8 @@ a {
     pointer-events: all; /* 클릭 이벤트를 받을 수 있도록 함 */
     cursor: pointer;
 }
+
+/* 임시로 무승부 버튼 비활성화 */
+#draw-button {
+    display: none;
+}
