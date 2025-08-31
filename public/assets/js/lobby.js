@@ -95,20 +95,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         container.innerHTML = `
             <h3>게임 기록</h3>
-            <table>
-                <thead><tr><th>상대</th><th>내 색깔</th><th>결과</th><th>종료 사유</th><th>날짜</th></tr></thead>
-                <tbody>
-                    ${matches.map(m => `
-                        <tr>
-                            <td>${m.opponent_nickname}</td>
-                            <td>${m.my_color}</td>
-                            <td>${m.result}</td>
-                            <td>${m.end_reason}</td>
-                            <td>${new Date(m.start_at).toLocaleString()}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <div class="scrollable-table">
+                <table>
+                    <thead><tr><th>상대</th><th>내 색깔</th><th>결과</th><th>종료 사유</th><th>날짜</th></tr></thead>
+                    <tbody>
+                        ${matches.map(m => `
+                            <tr>
+                                <td>${m.opponent_nickname}</td>
+                                <td>${m.my_color}</td>
+                                <td>${m.result}</td>
+                                <td>${m.end_reason}</td>
+                                <td>${new Date(m.start_at).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
         `;
     }
 
@@ -120,11 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         container.innerHTML = `
             <h3>보유 아이템</h3>
-            <div class="inventory-grid">
+            <div class="horizontal-scroll-grid">
                 ${items.map(item => `
-                    <div class="inventory-item">
-                        <img src="${API_BASE_URL}${item.asset_path}" alt="${item.name}">
+                    <div class="grid-item">
+                        <img src="${API_BASE_URL}${item.asset_path}${item.item_type === 'piece_skin' ? 'wK.png' : ''}" alt="${item.name}">
                         <p>${item.name}</p>
+                        <button class="equip-button" data-user-item-id="${item.user_item_id}">장착</button>
                     </div>
                 `).join('')}
             </div>
@@ -134,20 +137,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================== 렌더링 함수 ==================
     function renderShop(items) {
         const container = document.getElementById('shop-items-content');
-        container.innerHTML = items.map(item => `
-            <div class="shop-item">
-                <img src="${API_BASE_URL}${item.asset_path}" alt="${item.name}" style="width: 50px;">
-                <h3>${item.name}</h3>
-                <p>${item.description}</p>
-                <p>가격: ${item.price} 코인</p>
-                <button class="buy-button" data-item-id="${item.id}">구매</button>
+        container.innerHTML = `
+            <div class="shop-grid">
+                ${items.map(item => `
+                    <div class="shop-item">
+                        <img src="${API_BASE_URL}${item.asset_path}${item.item_type === 'piece_skin' ? 'wK.png' : ''}" alt="${item.name}">
+                        <h3>${item.name}</h3>
+                        <p>${item.description}</p>
+                        <p>가격: ${item.price} 코인</p>
+                        <button class="buy-button" data-item-id="${item.id}">구매</button>
+                    </div>
+                `).join('')}
             </div>
-        `).join('');
+        `;
     }
 
     function renderLeaderboard(data) {
         const container = document.getElementById('leaderboard-content');
         container.innerHTML = `
+        <div class="scrollable-table">
             <table>
                 <thead>
                     <tr>
@@ -169,7 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     `).join('')}
                 </tbody>
             </table>
-        `;
+        </div>
+    `;
+
     }
 
     // ================== 이벤트 리스너 ==================
@@ -191,6 +201,68 @@ document.addEventListener('DOMContentLoaded', () => {
     // 매치메이킹 시작 버튼 클릭
     startMatchmakingButton.addEventListener('click', startMatchmaking);
     
+    // 콘텐츠 영역의 클릭 이벤트를 위임하여 처리
+    contentArea.addEventListener('click', async (event) => {
+        // 구매 버튼 클릭 시
+        if (event.target.classList.contains('buy-button')) {
+            const button = event.target;
+            const itemId = button.dataset.itemId;
+            
+            if (confirm(`'${button.parentElement.querySelector('h3').textContent}' 아이템을 구매하시겠습니까?`)) {
+                try {
+                    button.disabled = true;
+                    button.textContent = '처리 중...';
+                    const response = await request(`/api/shop/items/${itemId}/buy`, 'POST');
+                    alert(response.message);
+                    // 구매 성공 시, 내 정보(코인)와 인벤토리 뷰를 새로고침
+                    updateUserInfo();
+                    if (document.getElementById('my-info-view').classList.contains('hidden') === false) {
+                        loadViewContent('my-info-view');
+                    }
+                } catch (error) {
+                    alert(`구매 실패: ${error.message}`);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = '구매';
+                }
+            }
+        }
+
+        // 장착 버튼 클릭 시
+        if (event.target.classList.contains('equip-button')) {
+            const button = event.target;
+            const userItemId = button.dataset.userItemId;
+            
+            if (confirm(`'${button.parentElement.querySelector('p').textContent}' 아이템을 장착하시겠습니까?`)) {
+                try {
+                    button.disabled = true;
+                    button.textContent = '장착 중...';
+                    const response = await request(`/api/users/me/items/${userItemId}/equip`, 'POST');
+                    alert(response.message);
+                    // 장착 성공 시, 헤더의 아이콘 등 내 정보를 새로고침
+                    updateUserInfo(); 
+                } catch (error) {
+                    alert(`장착 실패: ${error.message}`);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = '장착';
+                }
+            }
+        }
+    });
+    
+    // ================== 추가 헬퍼 함수 ==================
+    // 내 정보를 서버에서 새로고침하고 localStorage와 헤더 UI를 업데이트하는 함수
+    async function updateUserInfo() {
+        try {
+            const userData = await request('/api/users/me', 'GET');
+            localStorage.setItem('user_info', JSON.stringify(userData));
+            // 헤더 UI에도 즉시 반영
+            initializeLobby(); 
+        } catch (error) {
+            console.error('Failed to update user info:', error);
+        }
+    }
 
     // ================== 매치메이킹 관련 함수 ==================
     let isMatchmaking = false;

@@ -141,7 +141,7 @@ a {
 .inventory-item {
     text-align: center;
     border: 1px solid #eee;
-    padding: 1rem;
+    padding: 0.5rem; /* 세로 공간을 줄이기 위해 패딩을 줄입니다. */
     border-radius: 4px;
 }
 .inventory-item img {
@@ -236,6 +236,77 @@ a {
     box-sizing: border-box;
     pointer-events: all; /* 클릭 이벤트를 받을 수 있도록 함 */
     cursor: pointer;
+}
+
+/* Scrollable Table for Match History */
+.scrollable-table {
+    overflow-y: auto; /* 내용이 max-height를 넘으면 세로 스크롤 생성 */
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+.scrollable-table table {
+    width: 100%; /* 부모 div에 꽉 차도록 */
+    border-collapse: collapse;
+}
+.scrollable-table th, .scrollable-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+/* '내 정보' 뷰의 테이블은 좁게 */
+#my-info-view .scrollable-table {
+    max-height: 120px; 
+}
+
+/* '리더보드' 뷰의 테이블은 길게 */
+#leaderboard-view .scrollable-table {
+    max-height: 60vh; /* 화면 높이의 60% 만큼 길게 */
+}
+
+
+/* Shop Grid Style */
+.shop-grid {
+    display: flex; /* 아이템들을 가로로 나열 */
+    flex-wrap: nowrap; /* 줄바꿈 안함 */
+    overflow-x: auto; /* 내용이 넘치면 가로 스크롤 생성 */
+    gap: 1.5rem;
+    padding-bottom: 1rem; /* 스크롤바와의 여백 */
+}
+
+.shop-item {
+    flex: 0 0 200px; /* 아이템의 기본 너비를 200px로 고정, 줄어들거나 늘어나지 않음 */
+    border: 1px solid #eee;
+    padding: 1rem;
+    border-radius: 4px;
+    text-align: center;
+}
+.shop-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.horizontal-scroll-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding: 0;
+}
+
+.grid-item {
+    flex: 0 0 150px; /* 아이템 너비 고정 */
+    border: 1px solid #eee;
+    padding: 1rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.grid-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain; /* 이미지가 잘리지 않도록 */
 }
 
 /* 임시로 무승부 버튼 비활성화 */
