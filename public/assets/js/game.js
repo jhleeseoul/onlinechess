@@ -401,9 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             selectedPiece = null;
             clearHighlights();
+
+        
             
             // 서버 응답을 중앙 처리 함수로 넘김
-            handleServerUpdate({ fen: response.fen, isCheck: response.isCheck });
+            handleServerUpdate({ fen: response.fen, isCheck: response.isCheck, status: response.status });
 
         } catch (error) {
             alert(`이동 실패: ${error.message}`);

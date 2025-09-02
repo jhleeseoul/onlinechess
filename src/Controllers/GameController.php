@@ -125,7 +125,7 @@ class GameController
         $redis->lPush($updateListKey, json_encode(['fen' => $newFen, 'isCheck' => $newLogic->isCheck()]));
         $redis->expire($updateListKey, 600); // 리스트는 10분 정도만 유지
 
-        $response = ['message' => 'Move successful', 'fen' => $newFen, 'game_status' => 'ongoing', 'isCheck' => $newLogic->isCheck()];
+        $response = ['message' => 'Move successful', 'fen' => $newFen, 'status' => 'ongoing', 'isCheck' => $newLogic->isCheck()];
 
         // 게임 종료 확인 및 처리
         if ($newLogic->isCheckmate() || $newLogic->isStalemate()) {
@@ -144,8 +144,8 @@ class GameController
             $redis->hSet($redisKey, 'status', 'finished');
 
             // 응답에 게임 종료 정보 추가
-            $response['game_status'] = 'finished';
-            $response['game_result'] = ['result' => $result, 'reason' => $endReason];
+            $response['status'] = 'finished';
+            $response['result'] = ['result' => $result, 'reason' => $endReason];
         }
 
         echo json_encode($response);

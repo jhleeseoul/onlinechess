@@ -22,12 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const matchmakingStatus = document.getElementById('matchmaking-status');
 
     // ================== 초기화 함수 ==================
-    function initializeLobby() {
+    function initializeLobby(currentUserInfo) {
         // 헤더 정보 채우기
-        profileIcon.src = `${API_BASE_URL}${userInfo.profile_icon_path}`;
-        userNickname.textContent = userInfo.nickname;
-        userCoins.textContent = userInfo.coins;
-        userPoints.textContent = userInfo.points;
+        profileIcon.src = `${API_BASE_URL}${currentUserInfo.profile_icon_path}`;
+        userNickname.textContent = currentUserInfo.nickname;
+        userCoins.textContent = currentUserInfo.coins;
+        userPoints.textContent = currentUserInfo.points;
     }
 
     // ================== 뷰 전환 함수 ==================
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await request(`/api/shop/items/${itemId}/buy`, 'POST');
                     alert(response.message);
                     // 구매 성공 시, 내 정보(코인)와 인벤토리 뷰를 새로고침
-                    updateUserInfo();
+                    await updateUserInfo();
                     if (document.getElementById('my-info-view').classList.contains('hidden') === false) {
                         loadViewContent('my-info-view');
                     }
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await request(`/api/users/me/items/${userItemId}/equip`, 'POST');
                     alert(response.message);
                     // 장착 성공 시, 헤더의 아이콘 등 내 정보를 새로고침
-                    updateUserInfo(); 
+                    await updateUserInfo(); 
                 } catch (error) {
                     alert(`장착 실패: ${error.message}`);
                 } finally {
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const userData = await request('/api/users/me', 'GET');
             localStorage.setItem('user_info', JSON.stringify(userData));
             // 헤더 UI에도 즉시 반영
-            initializeLobby(); 
+            initializeLobby(userData);
         } catch (error) {
             console.error('Failed to update user info:', error);
         }
@@ -332,5 +332,5 @@ document.addEventListener('DOMContentLoaded', () => {
         startMatchmakingButton.disabled = false;
     }
     // ================== 초기 실행 ==================
-    initializeLobby();
+    initializeLobby(userInfo);
 });
