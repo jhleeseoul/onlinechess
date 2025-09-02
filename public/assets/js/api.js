@@ -6,29 +6,31 @@ const API_BASE_URL = 'http://localhost/onlinechess/public';
  * @param {string} endpoint API 엔드포인트 (예: '/api/users/me')
  * @param {string} method HTTP 메소드 (GET, POST, PATCH 등)
  * @param {object|null} body 요청 본문에 담을 데이터 (GET 요청 시에는 null)
+ * @param {object} options 추가 fetch 옵션 (예: { signal })
  * @returns {Promise<object>} 서버로부터 받은 JSON 데이터
  */
-async function request(endpoint, method = 'GET', body = null) {
+async function request(endpoint, method = 'GET', body = null, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = localStorage.getItem('jwt_token');
 
-    const options = {
+    const config = {
         method,
         headers: {
             'Content-Type': 'application/json',
         },
+        ...options
     };
 
     if (token) {
-        options.headers['Authorization'] = `Bearer ${token}`;
+        config.headers['Authorization'] = `Bearer ${token}`;
     }
 
     if (body) {
-        options.body = JSON.stringify(body);
+        config.body = JSON.stringify(body);
     }
 
     try {
-        const response = await fetch(url, options);
+        const response = await fetch(url, config);
         
         // 응답이 비어있는 경우 (예: 204 No Content)를 대비
         const responseText = await response.text();

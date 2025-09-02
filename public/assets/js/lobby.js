@@ -216,9 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(response.message);
                     // 구매 성공 시, 내 정보(코인)와 인벤토리 뷰를 새로고침
                     await updateUserInfo();
-                    if (document.getElementById('my-info-view').classList.contains('hidden') === false) {
-                        loadViewContent('my-info-view');
-                    }
+                    loadViewContent('my-info-view');
                 } catch (error) {
                     alert(`구매 실패: ${error.message}`);
                 } finally {
@@ -241,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(response.message);
                     // 장착 성공 시, 헤더의 아이콘 등 내 정보를 새로고침
                     await updateUserInfo(); 
+                    loadViewContent('my-info-view');
                 } catch (error) {
                     alert(`장착 실패: ${error.message}`);
                 } finally {

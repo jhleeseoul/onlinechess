@@ -27,6 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let myColor = null;
     let selectedPiece = null; // 현재 선택된 말 DOM 요소
     let validMoves = [];      // 선택된 말의 유효한 이동 경로 배열
+    let waitForMoveController = null; // AbortController 인스턴스
+
+    // 페이지가 언로드되기 전에 대기 중인 요청을 취소
+    window.addEventListener('beforeunload', () => {
+        if (waitForMoveController) {
+            waitForMoveController.abort();
+        }
+    });
 
     // ================== 함수 ==================
 
@@ -159,7 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await request(`/api/game/${gameId}/status`, 'GET');
             gameState = response.game_data;
-            
+
+            gameState.whitePlayer = response.white_player;
+            gameState.blackPlayer = response.black_player;
+
             const whitePlayer = response.white_player;
             const blackPlayer = response.black_player;
 
@@ -212,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             gameStatusMessage.textContent = "상대방의 턴입니다...";
             boardContainer.style.borderColor = '#333';
+            console.log("상대방의 턴입니다. 롱 폴링 시작...");
             waitForOpponentMove();
         }
     }
@@ -221,12 +233,15 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function waitForOpponentMove() {
 
+        waitForMoveController = new AbortController();
+        const signal = waitForMoveController.signal;
+
         if (myColor === gameState.current_turn || gameState.status === 'finished') {
             return; // 내 턴이거나 게임이 끝났으면 대기할 필요 없음
         }
         console.log("Waiting for opponent's move...");
         try {
-            const response = await request(`/api/game/${gameId}/wait-for-move`);
+            const response = await request(`/api/game/${gameId}/wait-for-move`, 'GET', null, { signal });
             console.log("Received response from server:", response);
             if (response.status === 'updated' && response.data) {
                 console.log("Opponent's move received:", response.data);
@@ -236,9 +251,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 waitForOpponentMove();
             }
         } catch (error) {
-            console.error('Long polling error:', error);
-            gameStatusMessage.textContent = `연결 오류. 3초 후 재시도...`;
-            setTimeout(waitForOpponentMove, 3000);
+            if (error.name === 'AbortError') {
+                console.log('previous Long polling request aborted');
+            } else {
+                console.error('Long polling error:', error);
+                gameStatusMessage.textContent = `연결 오류. 3초 후 재시도...`;
+                setTimeout(waitForOpponentMove, 3000);
+            }
         }
     }
 

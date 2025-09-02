@@ -120,8 +120,9 @@ class GameController
             'pgn' => $currentPgn . $pgn
         ]);
         
-       // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
-        $updateListKey = "game_updates_list:{$gameId}";
+        // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
+        $opponentColor = $isWhite ? 'b' : 'w';
+        $updateListKey = "game_updates_list:{$gameId}:{$opponentColor}";
         $redis->lPush($updateListKey, json_encode(['fen' => $newFen, 'isCheck' => $newLogic->isCheck()]));
         $redis->expire($updateListKey, 600); // 리스트는 10분 정도만 유지
 
@@ -146,6 +147,7 @@ class GameController
             // 응답에 게임 종료 정보 추가
             $response['status'] = 'finished';
             $response['result'] = ['result' => $result, 'reason' => $endReason];
+            $this->notifyOpponent($gameId, ['status' => 'finished', 'result' => $result, 'reason' => $endReason]);
         }
 
         echo json_encode($response);
@@ -159,25 +161,45 @@ class GameController
             echo json_encode(['message' => 'Authentication required.']);
             return; 
         }
+        // getGameData는 세션을 사용하지 않으므로, 사용자 인증 후 바로 세션 잠금을 해제합니다.
+        session_write_close();
+        ignore_user_abort(false);
 
         $gameData = $this->getGameData($gameId, $authedUser->userId);
         if (!$gameData) return;
 
+        $myColor = ($authedUser->userId == $gameData['white_player_id']) ? 'w' : 'b';
+
         // Blocking List Pop (BRPOP) 사용
         $redis = Database::getRedisInstance();
-        $updateListKey = "game_updates_list:{$gameId}";
-        
-        // brPop은 [키, 값] 배열을 반환, 30초 동안 대기
-        $message = $redis->brPop([$updateListKey], 30); 
-        
-        if ($message) {
-            // $message[0]는 리스트 키, $message[1]는 값
-            $updateData = json_decode($message[1], true);
-            echo json_encode(['status' => 'updated', 'data' => $updateData]);
-        } else {
-            // 30초 동안 아무 일도 없으면 타임아웃
-            echo json_encode(['status' => 'timeout']);
+        $updateListKey = "game_updates_list:{$gameId}:{$myColor}";
+
+        // ★★★★★ 2. 30초 동안 한 번만 기다리는 대신, 짧게 여러 번 확인하여 연결 중단을 더 빨리 감지합니다.
+        $timeout = 30; // 총 대기 시간 (초)
+        $startTime = time();
+
+        while (time() - $startTime < $timeout) {
+            // ★★★★★ 3. 클라이언트 연결이 끊겼는지 매번 확인합니다.
+            if (connection_aborted()) {
+                // 연결이 끊겼으면 즉시 스크립트 종료 (유령 요청 소멸)
+                break; 
+            }
+
+            // Redis를 5초 동안만 블로킹해서 기다립니다.
+            $message = $redis->brPop([$updateListKey], 5); 
+
+            if ($message) {
+                // 메시지를 받으면 즉시 응답하고 루프를 종료합니다.
+                $updateData = json_decode($message[1], true);
+                echo json_encode(['status' => 'updated', 'data' => $updateData]);
+                return;
+            }
+            
+            // 5초 동안 메시지가 없으면 루프를 계속 돌며 다시 시도합니다.
         }
+
+        // 30초가 지나도 아무 일도 없으면 타임아웃 응답을 보냅니다.
+        echo json_encode(['status' => 'timeout']);
     }
 
     public function resignGame(int $gameId): void
@@ -234,14 +256,14 @@ class GameController
             'status' => 'finished',
             'current_turn' => 'none'
         ]);
-
+        $opponentColor = $isWhite ? 'b' : 'w';
         // 상대방에게 게임 종료 알림
         $updateData = json_encode([
             'status' => 'finished',
             'result' => $result,
             'reason' => $endReason
         ]);
-        $updateListKey = "game_updates_list:{$gameId}";
+        $updateListKey = "game_updates_list:{$gameId}:{$opponentColor}";
         $redis->lPush($updateListKey, $updateData);
 
         http_response_code(200);
