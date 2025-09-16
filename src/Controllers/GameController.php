@@ -296,80 +296,94 @@ class GameController
     }
 
     
-    // public function handleDrawOffer(int $gameId): void
-    // {
-    //     $authedUser = Auth::getAuthUser();
-    //     if (!$authedUser) { 
-    //         http_response_code(401);
-    //         echo json_encode(['message' => 'Authentication required.']);
-    //         return;
-    //     }
+    public function handleDrawOffer(int $gameId): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
 
-    //     $gameData = $this->getGameData($gameId, $authedUser->userId);
-    //     if (!$gameData) return;
+        $gameData = $this->getGameData($gameId, $authedUser->userId);
+        if (!$gameData) return;
 
-    //     if ($gameData['status'] === 'finished') {
-    //         http_response_code(400);
-    //         echo json_encode(['message' => 'This game has already finished.']);
-    //         return;
-    //     }
+        if ($gameData['status'] === 'finished') {
+            http_response_code(400);
+            echo json_encode(['message' => 'This game has already finished.']);
+            return;
+        }
 
-    //     $input = (array)json_decode(file_get_contents('php://input'), true);
-    //     $action = $input['action'] ?? null;
+        $input = (array)json_decode(file_get_contents('php://input'), true);
+        $action = $input['action'] ?? null;
 
-    //     $redis = Database::getRedisInstance();
-    //     $redisKey = "game:{$gameId}";
-    //     $drawOfferBy = $redis->hGet($redisKey, 'draw_offer_by');
+        $redis = Database::getRedisInstance();
+        $redisKey = "game:{$gameId}";
+        $drawOfferBy = $redis->hGet($redisKey, 'draw_offer_by');
 
-    //     $myColor = ($authedUser->userId == $gameData['white_player_id']) ? 'w' : 'b';
+        $isWhite = ($authedUser->userId == $gameData['white_player_id']);
+        $myColor = $isWhite ? 'w' : 'b';
+        $opponentColor = $isWhite ? 'b' : 'w';
 
-    //     switch ($action) {
-    //         case 'offer':
-    //             // 이미 제안이 있거나, 내가 제안한 상태면 안됨
-    //             if ($drawOfferBy) {
-    //                 http_response_code(409); // Conflict
-    //                 echo json_encode(['message' => 'A draw offer is already pending.']);
-    //                 return;
-    //             }
-    //             $redis->hSet($redisKey, 'draw_offer_by', $myColor);
-    //             $this->notifyOpponent($gameId, ['type' => 'draw_offer', 'offered_by' => $myColor]);
-    //             echo json_encode(['message' => 'Draw offer sent.']);
-    //             break;
+        switch ($action) {
+            case 'offer':
+                if ($gameData['current_turn'] !== $myColor) {
+                    http_response_code(400);
+                    echo json_encode(['message' => 'You can only offer a draw on your turn.']);
+                    return;
+                }
+                if ($drawOfferBy) {
+                    http_response_code(409); // Conflict
+                    echo json_encode(['message' => 'A draw offer is already pending.']);
+                    return;
+                }
+                $redis->hSet($redisKey, 'draw_offer_by', $myColor);
+                $this->notifyOpponent($gameId, ['type' => 'draw_offer', 'offered_by' => $myColor], $opponentColor);
+                echo json_encode(['message' => 'Draw offer sent.']);
+                break;
 
-    //         case 'accept':
-    //             // 상대방이 제안한 상태여야만 수락 가능
-    //             if (!$drawOfferBy || $drawOfferBy === $myColor) {
-    //                 http_response_code(400);
-    //                 echo json_encode(['message' => 'No valid draw offer to accept.']);
-    //                 return;
-    //             }
+            case 'accept':
+                if (!$drawOfferBy || $drawOfferBy === $myColor) {
+                    http_response_code(400);
+                    echo json_encode(['message' => 'No valid draw offer to accept.']);
+                    return;
+                }
 
-    //             $gameModel = new Game();
-    //             $finalPgn = $redis->hGet($redisKey, 'pgn');
-    //             $gameModel->updateGameResult($gameId, 'draw', 'agreement', $gameData['fen'], $finalPgn);
+                $gameModel = new Game();
+                $finalPgn = $redis->hGet($redisKey, 'pgn') ?? '';
+                $gameModel->updateGameResult($gameId, 'draw', 'agreement', $gameData['fen'], $finalPgn);
                 
-    //             $redis->hMSet($redisKey, ['status' => 'finished', 'draw_offer_by' => '']);
-    //             $this->notifyOpponent($gameId, ['type' => 'draw_accepted']);
-    //             echo json_encode(['message' => 'Draw offer accepted. Game over.']);
-    //             break;
+                $redis->hMSet($redisKey, ['status' => 'finished', 'current_turn' => 'none']);
+                $redis->hDel($redisKey, 'draw_offer_by');
 
-    //         case 'decline':
-    //             // 상대방이 제안한 상태여야만 거절 가능
-    //             if (!$drawOfferBy || $drawOfferBy === $myColor) {
-    //                 http_response_code(400);
-    //                 echo json_encode(['message' => 'No valid draw offer to decline.']);
-    //                 return;
-    //             }
-    //             $redis->hSet($redisKey, 'draw_offer_by', ''); // 제안 상태 초기화
-    //             $this->notifyOpponent($gameId, ['type' => 'draw_declined']);
-    //             echo json_encode(['message' => 'Draw offer declined.']);
-    //             break;
+                $endData = [
+                    'status' => 'finished',
+                    'result' => ['result' => 'draw', 'reason' => 'agreement']
+                ];
+                
+                // 상대방에게 게임 종료 알림
+                $this->notifyOpponent($gameId, $endData, $opponentColor);
+                
+                // 수락한 나에게도 게임 종료 응답
+                echo json_encode($endData);
+                break;
 
-    //         default:
-    //             http_response_code(400);
-    //             echo json_encode(['message' => 'Invalid action. Use "offer", "accept", or "decline".']);
-    //     }
-    // }
+            case 'decline':
+                if (!$drawOfferBy || $drawOfferBy === $myColor) {
+                    http_response_code(400);
+                    echo json_encode(['message' => 'No valid draw offer to decline.']);
+                    return;
+                }
+                $redis->hDel($redisKey, 'draw_offer_by'); // 제안 상태 초기화
+                $this->notifyOpponent($gameId, ['type' => 'draw_declined'], $opponentColor);
+                echo json_encode(['message' => 'Draw offer declined.']);
+                break;
+
+            default:
+                http_response_code(400);
+                echo json_encode(['message' => 'Invalid action. Use "offer", "accept", or "decline".']);
+        }
+    }
 
     public function getGameStatus(int $gameId): void
     {

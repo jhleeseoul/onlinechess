@@ -92,7 +92,7 @@ $router->addRoute('POST', 'api/users/me/items/{userItemId}/equip', [App\Controll
 $router->addRoute('GET', 'api/leaderboard', [App\Controllers\UserController::class, 'showLeaderboard']);
 
 // 무승부 제안 처리 API 라우트
-// $router->addRoute('POST', 'api/game/{gameId}/draw', [App\Controllers\GameController::class, 'handleDrawOffer']);
+$router->addRoute('POST', 'api/game/{gameId}/draw', [App\Controllers\GameController::class, 'handleDrawOffer']);
 
 // 사용자 정보 업데이트 API 라우트
 $router->addRoute('PATCH', 'api/users/me', [App\Controllers\UserController::class, 'updateMyInfo']);

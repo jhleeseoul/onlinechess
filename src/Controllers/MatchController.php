@@ -320,19 +320,6 @@ class MatchController
             ];
 
         // 2-3. 응답 데이터 생성
-
-        // $myMatchData = [
-        //         'status' => 'matched',
-        //         'message' => 'Match found!',
-        //         'game_id' => $gameId,
-        //         'my_color' => $isWhite ? 'white' : 'black',
-        //         'opponent' => [
-        //             'id' => $opponentInfo['id'],
-        //             'nickname' => $opponentInfo['nickname'],
-        //             'points' => $opponentInfo['points'],
-        //             'profile_icon_path' => $opponentInfo['profile_icon_path']
-        //         ]
-        //     ];
         $joinerMatchData = [
             'status' => 'matched', 'game_id' => $gameId, 'my_color' => !$isCreatorWhite ? 'white' : 'black',
             'opponent' => ['id' => $creatorInfo['id'], 'nickname' => $creatorInfo['nickname'], 'points' => $creatorInfo['points'], 'profile_icon_path' => $creatorInfo['profile_icon_path'] /* ... */]

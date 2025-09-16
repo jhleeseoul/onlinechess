@@ -309,11 +309,6 @@ a {
     object-fit: contain; /* 이미지가 잘리지 않도록 */
 }
 
-/* 임시로 무승부 버튼 비활성화 */
-#draw-button {
-    display: none;
-}
-
 /* ================== 탭 UI 스타일 ================== */
 .tab-buttons {
     display: flex;

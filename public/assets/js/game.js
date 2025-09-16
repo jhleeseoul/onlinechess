@@ -215,13 +215,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const isMyTurn = (myColor === gameState.current_turn);
+        const checkMessage = gameState.isCheck ? " (체크!)" : "";
 
         if (isMyTurn) {
-            gameStatusMessage.textContent = "당신의 턴입니다.";
+            gameStatusMessage.textContent = "당신의 턴입니다." + checkMessage;
             boardContainer.style.borderColor = 'gold';
             console.log("내 턴입니다.");
         } else {
-            gameStatusMessage.textContent = "상대방의 턴입니다...";
+            gameStatusMessage.textContent = "상대방의 턴입니다..." + checkMessage;
             boardContainer.style.borderColor = '#333';
             console.log("상대방의 턴입니다. 롱 폴링 시작...");
             waitForOpponentMove();
@@ -236,8 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
         waitForMoveController = new AbortController();
         const signal = waitForMoveController.signal;
 
-        if (myColor === gameState.current_turn || gameState.status === 'finished') {
-            return; // 내 턴이거나 게임이 끝났으면 대기할 필요 없음
+        if (gameState.status === 'finished') {
+            return; // 게임이 끝났으면 대기할 필요 없음
         }
         console.log("Waiting for opponent's move...");
         try {
@@ -267,6 +268,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleServerUpdate(data) {
         console.log("Server update received:", data); 
 
+        if (data.isCheck !== undefined) {
+            gameState.isCheck = data.isCheck;
+        }
+
         // 1. FEN 업데이트가 있으면 보드를 새로 그림
         if (data.fen) {
             gameState.fen = data.fen;
@@ -277,29 +282,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const myPlayerInfo = myColor === 'w' ? gameState.whitePlayer : gameState.blackPlayer;
             renderBoard(gameState.fen, myPlayerInfo.board_skin_path, myPlayerInfo.piece_skin_path);
-            
-            if (data.isCheck) {
-                // alert()는 게임 흐름을 방해하므로, 메시지로 대체
-                gameStatusMessage.textContent = "체크!";
-            }
         }
         
         // 2. 기타 이벤트 처리
         switch (data.type) {
             case 'draw_offer':
                 console.log("Draw offer received:", data);
-                const offeredBy = data.offered_by === myColor ? '당신' : '상대방';
-                if (offeredBy === '상대방') {
-                    if (confirm(`상대방이 무승부를 제안했습니다. 수락하시겠습니까?`)) {
-                        request(`/api/game/${gameId}/draw`, 'POST', { action: 'accept' });
-                    } else {
-                        request(`/api/game/${gameId}/draw`, 'POST', { action: 'decline' });
-                    }
+                const offeredBy = data.offered_by === myColor ? 'me' : 'opponent';
+                if (offeredBy === 'opponent') {
+                    //수정: 즉시 응답을 처리하도록 async/await 추가
+                    (async () => {
+                        if (confirm(`상대방이 무승부를 제안했습니다. 수락하시겠습니까?`)) {
+                            const response = await request(`/api/game/${gameId}/draw`, 'POST', { action: 'accept' });
+                            // 수락 시 서버가 게임 종료 데이터를 주므로, 바로 처리
+                            handleServerUpdate(response);
+                        } else {
+                            await request(`/api/game/${gameId}/draw`, 'POST', { action: 'decline' });
+                            // 거절 시에는 특별한 UI 변경 없음
+                        }
+                    })();
                 }
                 break;
-            case 'draw_accepted':
-                handleGameEnd({ result: 'draw', reason: 'agreement' });
-                return; // 게임 종료이므로 여기서 함수 종료
+            case 'draw_accepted': // 이 케이스는 이제 사용되지 않지만, 만약을 위해 남겨둠
+                return;
             case 'draw_declined':
                 alert('무승부 제안이 거절되었습니다.');
                 break;
@@ -442,6 +447,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await request(`/api/game/${gameId}/draw`, 'POST', { action: 'offer' });
                 gameStatusMessage.textContent = response.message;
+
+                // 추가: 제안 후 즉시 상대의 응답을 기다림
+                waitForOpponentMove();
+
             } catch (error) {
                 alert(`오류: ${error.message}`);
             }
