@@ -179,4 +179,25 @@ class UserController
             echo json_encode(['message' => 'Failed to update user information. Nickname may already be in use.']);
         }
     }
+
+    public function getCurrentGame(): void
+    {
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        if ($authedUser === null) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $userModel = new \App\Models\User();
+        $currentGameId = $userModel->findCurrentGameByUserId($authedUser->userId);
+
+        if ($currentGameId !== null) {
+            http_response_code(200);
+            echo json_encode(['game_id' => $currentGameId]);
+        } else {
+            http_response_code(200); // 게임이 없는 것도 정상적인 상태이므로 200 OK
+            echo json_encode(['game_id' => null]);
+        }
+    }
 }

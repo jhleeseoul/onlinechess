@@ -1,10 +1,23 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // ================== 인증 가드 ==================
     const token = localStorage.getItem('jwt_token');
     if (!token) {
         alert('로그인이 필요합니다.');
         window.location.href = './index.html';
         return;
+    }
+
+    // ================== 게임 재접속 확인 ==================
+    try {
+        const gameStatus = await request('/api/users/me/current-game', 'GET');
+        if (gameStatus.game_id !== null) {
+            // 진행 중인 게임이 있으면 즉시 게임 페이지로 이동
+            window.location.href = `./game.html?gameId=${gameStatus.game_id}`;
+            return; // 이후의 로비 초기화 코드는 실행하지 않음
+        }
+    } catch (error) {
+        console.error("Failed to check for current game:", error);
+        // 오류가 나도 일단 로비는 표시되도록 그냥 넘어감
     }
 
     const userInfo = JSON.parse(localStorage.getItem('user_info'));

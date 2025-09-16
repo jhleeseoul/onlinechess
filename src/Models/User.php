@@ -252,4 +252,32 @@ class User
             return false;
         }
     }
+
+    /**
+     * 사용자가 현재 참여하고 있는 게임 ID를 찾습니다. (Redis 조회)
+     * @param int $userId
+     * @return int|null 게임 ID 또는 null
+     */
+    public function findCurrentGameByUserId(int $userId): ?int
+    {
+        $redis = \App\Core\Database::getRedisInstance();
+        
+        // "game:*" 패턴의 모든 키를 스캔
+        // 더 나은 방법은 유저별로 현재 게임 ID를 별도 키에 저장하는 것이나 (예: user_game:123 -> 456)
+        // 이 프로젝트에서는 키의 개수가 많지 않으므로 SCAN으로 구현
+        $iterator = null;
+        while ($keys = $redis->scan($iterator, 'game:*', 100)) {
+            foreach ($keys as $key) {
+                // 각 게임의 플레이어 ID를 확인합니다.
+                $players = $redis->hMGet($key, ['white_player_id', 'black_player_id', 'status']);
+                if ($players['status'] === 'ongoing' && 
+                   ($players['white_player_id'] == $userId || $players['black_player_id'] == $userId)) {
+                    // 키 이름에서 gameId를 추출 (e.g., "game:123" -> 123)
+                    return (int)substr($key, strpos($key, ':') + 1);
+                }
+            }
+        }
+        
+        return null; // 진행 중인 게임 없음
+    }
 }

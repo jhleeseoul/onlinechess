@@ -39,6 +39,9 @@ $router->addRoute('POST', 'api/auth/login', [App\Controllers\AuthController::cla
 // 내 정보 조회 API 라우트 (인증 필요)
 $router->addRoute('GET', 'api/users/me', [App\Controllers\UserController::class, 'getMyInfo']);
 
+// 내 현재 게임 정보 조회 API 라우트 (인증 필요)
+$router->addRoute('GET', 'api/users/me/current-game', [App\Controllers\UserController::class, 'getCurrentGame']);
+
 // 랭크 매치 요청 API 라우트
 $router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::class, 'requestRankMatch']);
 

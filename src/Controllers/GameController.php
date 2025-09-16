@@ -254,8 +254,10 @@ class GameController
         // 상대방에게 게임 종료 알림
         $updateData = json_encode([
             'status' => 'finished',
-            'result' => $result,
-            'reason' => $endReason
+            'result' => [
+                'result' => $result,
+                'reason' => $endReason
+            ]
         ]);
         $updateListKey = "game_updates_list:{$gameId}:{$opponentColor}";
         $redis->lPush($updateListKey, $updateData);
