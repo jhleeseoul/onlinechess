@@ -9,11 +9,15 @@ class ShopController
 {
     public function listItems(): void
     {
+        // 토큰이 있으면 유저 ID를, 없으면 null을 가져옴
+        $authedUser = \App\Utils\Auth::getAuthUser();
+        $userId = $authedUser ? $authedUser->userId : null;
+
         $shopModel = new Shop();
-        $items = $shopModel->getAllItems();
+        $items = $shopModel->getAllItems($userId);
         
         http_response_code(200);
-        echo json_encode($items, JSON_UNESCAPED_UNICODE);
+        echo json_encode($items);
     }
 
     public function buyItem(int $itemId): void

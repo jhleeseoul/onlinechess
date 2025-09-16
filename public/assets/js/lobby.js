@@ -141,14 +141,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         container.innerHTML = `
             <h3>보유 아이템</h3>
-            <div class="horizontal-scroll-grid">
-                ${items.map(item => `
+             <div class="horizontal-scroll-grid">
+                ${items.map(item => {
+                    const isEquipped = item.is_equipped;
+                    return `
                     <div class="grid-item">
                         <img src="${API_BASE_URL}${item.asset_path}${item.item_type === 'piece_skin' ? 'wK.png' : ''}" alt="${item.name}">
                         <p>${item.name}</p>
-                        <button class="equip-button" data-user-item-id="${item.user_item_id}">장착</button>
+                        <button class="equip-button" data-user-item-id="${item.user_item_id}" ${isEquipped ? 'disabled' : ''}>
+                            ${isEquipped ? '장착됨' : '장착'}
+                        </button>
                     </div>
-                `).join('')}
+                `}).join('')}
             </div>
         `;
     }
@@ -157,17 +161,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderShop(items) {
         const container = document.getElementById('shop-items-content');
         container.innerHTML = `
-            <div class="shop-grid">
-                ${items.map(item => `
-                    <div class="shop-item">
-                        <img src="${API_BASE_URL}${item.asset_path}${item.item_type === 'piece_skin' ? 'wK.png' : ''}" alt="${item.name}">
-                        <h3>${item.name}</h3>
-                        <p>${item.description}</p>
-                        <p>가격: ${item.price} 코인</p>
-                        <button class="buy-button" data-item-id="${item.id}">구매</button>
-                    </div>
-                `).join('')}
-            </div>
+            <div class="shop-grid"> 
+            ${items.map(item => {
+                const isOwned = item.is_owned;
+                return `
+                <div class="shop-item">
+                    <img src="${API_BASE_URL}${item.asset_path}${item.item_type === 'piece_skin' ? 'wK.png' : ''}" alt="${item.name}">
+                    <h3>${item.name}</h3>
+                    <p>${item.description}</p>
+                    <p>가격: ${item.price} 코인</p>
+                    <button class="buy-button" data-item-id="${item.id}" ${isOwned ? 'disabled' : ''}>
+                        ${isOwned ? '보유 중' : '구매'}
+                    </button>
+                </div>
+            `}).join('')}
+        </div>
         `;
     }
 

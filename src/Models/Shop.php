@@ -14,9 +14,37 @@ class Shop
         $this->db = Database::getInstance();
     }
 
-    public function getAllItems(): array
+    /**
+     * 모든 상점 아이템 목록을 조회합니다.
+     * @param int|null $userId (선택) 제공될 경우, 해당 유저의 아이템 소유 여부를 포함합니다.
+     * @return array
+     */
+    public function getAllItems(?int $userId = null): array
     {
-        $stmt = $this->db->query("SELECT id, item_type, name, description, price, asset_path FROM items");
+        if ($userId) {
+            // 로그인한 유저: 소유 여부(is_owned)를 함께 조회
+            $sql = "
+                SELECT 
+                    i.id, i.item_type, i.name, i.description, i.price, i.asset_path,
+                    (CASE WHEN ui.id IS NOT NULL THEN 1 ELSE 0 END) AS is_owned
+                FROM 
+                    items i
+                LEFT JOIN 
+                    user_items ui ON i.id = ui.item_id AND ui.user_id = :userId
+            ";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':userId' => $userId]);
+        } else {
+            // 비로그인 유저: 기본 정보만 조회 (is_owned는 0으로)
+            $sql = "
+                SELECT 
+                    id, item_type, name, description, price, asset_path, 0 AS is_owned
+                FROM 
+                    items
+            ";
+            $stmt = $this->db->query($sql);
+        }
+        
         return $stmt->fetchAll();
     }
 
@@ -85,21 +113,29 @@ class Shop
      * @param int $userId
      * @return array
      */
-    public function getUserInventory(int $userId): array
+        public function getUserInventory(int $userId): array
     {
         $sql = "
             SELECT 
-                ui.id as user_item_id, 
-                i.id as item_id,
+                ui.id AS user_item_id, 
+                i.id AS item_id,
                 i.item_type,
                 i.name,
                 i.description,
                 i.asset_path,
-                ui.acquired_at
+                ui.acquired_at,
+                (CASE 
+                    WHEN i.item_type = 'profile_icon' AND u.profile_icon_id = i.id THEN 1
+                    WHEN i.item_type = 'board_skin' AND u.board_skin_id = i.id THEN 1
+                    WHEN i.item_type = 'piece_skin' AND u.piece_skin_id = i.id THEN 1
+                    ELSE 0 
+                END) AS is_equipped
             FROM 
                 user_items ui
             JOIN 
                 items i ON ui.item_id = i.id
+            JOIN
+                users u ON ui.user_id = u.id
             WHERE 
                 ui.user_id = :userId
             ORDER BY 
