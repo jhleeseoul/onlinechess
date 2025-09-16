@@ -331,5 +331,5 @@ document.addEventListener('DOMContentLoaded', () => {
         startMatchmakingButton.disabled = false;
     }
     // ================== 초기 실행 ==================
-    initializeLobby(userInfo);
+    updateUserInfo();
 });
