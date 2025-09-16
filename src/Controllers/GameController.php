@@ -120,36 +120,30 @@ class GameController
             'pgn' => $currentPgn . $pgn
         ]);
         
-        // 롱 폴링을 위한 업데이트 알림 (PUBLISH 대신 LPUSH 사용)
-        $opponentColor = $isWhite ? 'b' : 'w';
-        $updateListKey = "game_updates_list:{$gameId}:{$opponentColor}";
-        $redis->lPush($updateListKey, json_encode(['fen' => $newFen, 'isCheck' => $newLogic->isCheck()]));
-        $redis->expire($updateListKey, 600); // 리스트는 10분 정도만 유지
-
         $response = ['message' => 'Move successful', 'fen' => $newFen, 'status' => 'ongoing', 'isCheck' => $newLogic->isCheck()];
+        $opponentNotification = ['fen' => $newFen, 'isCheck' => $newLogic->isCheck()];
 
         // 게임 종료 확인 및 처리
         if ($newLogic->isCheckmate() || $newLogic->isStalemate()) {
+            $result = $newLogic->isCheckmate() ? ($isWhite ? 'white_win' : 'black_win') : 'draw';
+            $endReason = $newLogic->isCheckmate() ? 'checkmate' : 'stalemate';
+
             $gameModel = new Game();
-            $result = '';
-            $endReason = '';
-            if ($newLogic->isCheckmate()) {
-                $result = $isWhite ? 'white_win' : 'black_win';
-                $endReason = 'checkmate';
-            } else {
-                $result = 'draw';
-                $endReason = 'stalemate';
-            }
             $finalPgn = $redis->hGet($redisKey, 'pgn');
             $gameModel->updateGameResult($gameId, $result, $endReason, $newFen, $finalPgn);
+            
             $redis->hSet($redisKey, 'status', 'finished');
 
-            // 응답에 게임 종료 정보 추가
+            // ★★★ 수정: 응답과 알림 메시지에 게임 종료 정보를 추가합니다.
             $response['status'] = 'finished';
             $response['result'] = ['result' => $result, 'reason' => $endReason];
-            $this->notifyOpponent($gameId, ['status' => 'finished', 'result' => $result, 'reason' => $endReason]);
+            
+            $opponentNotification['status'] = 'finished';
+            $opponentNotification['result'] = ['result' => $result, 'reason' => $endReason];
         }
-
+        
+        $opponentColor = $isWhite ? 'b' : 'w';
+        $this->notifyOpponent($gameId, $opponentNotification, $opponentColor);
         echo json_encode($response);
     }
 
@@ -446,11 +440,12 @@ class GameController
      * 상대방에게 롱 폴링 알림을 보내는 헬퍼 메소드
      * @param int $gameId
      * @param array $data
+     * @param string $opponentColor
      */
-    private function notifyOpponent(int $gameId, array $data): void
+    private function notifyOpponent(int $gameId, array $data, string $opponentColor): void
     {
         $redis = Database::getRedisInstance();
-        $updateListKey = "game_updates_list:{$gameId}";
+        $updateListKey = "game_updates_list:{$gameId}:{$opponentColor}";
         $redis->lPush($updateListKey, json_encode($data));
         $redis->expire($updateListKey, 300);
     }

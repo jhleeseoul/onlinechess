@@ -275,7 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (fenTurn) {
                 gameState.current_turn = fenTurn;
             }
-            renderBoard(gameState.fen, myUserInfo.board_skin_path, myUserInfo.piece_skin_path);
+            const myPlayerInfo = myColor === 'w' ? gameState.whitePlayer : gameState.blackPlayer;
+            renderBoard(gameState.fen, myPlayerInfo.board_skin_path, myPlayerInfo.piece_skin_path);
             
             if (data.isCheck) {
                 // alert()는 게임 흐름을 방해하므로, 메시지로 대체
@@ -306,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 3. 게임 종료 이벤트 처리 (기권, 체크메이트 등)
         if (data.status === 'finished') {
-            handleGameEnd(data);
+            handleGameEnd(data.result || data);
             return; // 게임 종료
         }
 
@@ -424,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
             
             // 서버 응답을 중앙 처리 함수로 넘김
-            handleServerUpdate({ fen: response.fen, isCheck: response.isCheck, status: response.status });
+            handleServerUpdate(response);
 
         } catch (error) {
             alert(`이동 실패: ${error.message}`);
