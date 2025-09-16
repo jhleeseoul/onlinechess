@@ -22,20 +22,39 @@
 
         <main class="lobby-main">
             <nav class="lobby-nav">
-                <button data-view="matchmaking-view">매치 찾기</button>
+                <button data-view="matchmaking-view">랭크 매치</button>
                 <button data-view="my-info-view">내 정보</button>
                 <button data-view="shop-view">상점</button>
                 <button data-view="leaderboard-view">리더보드</button>
             </nav>
 
             <section id="content-area" class="content-area">
-                <!-- 매치메이킹 뷰 -->
+                                <!-- 매치메이킹 뷰 (탭 구조로 변경) -->
                 <div id="matchmaking-view" class="view">
-                    <h2>랭크 게임</h2>
-                    <p>랭크 게임을 시작하여 실력을 증명하세요!</p>
-                    <button id="start-matchmaking-button">랭크 매치 시작</button>
-                    <!-- 매칭 상태를 표시할 영역 -->
-                    <div id="matchmaking-status" class="matchmaking-status"></div>
+                    <div class="tab-buttons">
+                        <button class="tab-button active" data-tab="rank-match">랭크 게임</button>
+                        <button class="tab-button" data-tab="private-match">프라이빗 매치</button>
+                    </div>
+
+                    <!-- 랭크 게임 탭 -->
+                    <div id="rank-match" class="tab-content">
+                        <h2>랭크 게임</h2>
+                        <p>랭크 게임을 시작하여 실력을 증명하세요!</p>
+                        <button id="start-matchmaking-button">랭크 매치 시작</button>
+                        <div id="matchmaking-status" class="matchmaking-status"></div>
+                    </div>
+
+                    <!-- 프라이빗 매치 탭 -->
+                    <div id="private-match" class="tab-content hidden">
+                        <h2>프라이빗 매치</h2>
+                        <div id="private-match-controls">
+                            <button id="create-room-button">방 만들기</button>
+                            <hr>
+                            <input type="text" id="room-code-input" placeholder="초대 코드 입력">
+                            <button id="join-room-button">코드로 참가하기</button>
+                        </div>
+                        <div id="private-match-status" class="matchmaking-status"></div>
+                    </div>
                 </div>
                 <!-- 내 정보 뷰 (처음엔 숨겨져 있음) -->
                 <div id="my-info-view" class="view hidden">

@@ -75,6 +75,23 @@ class Game
             return false;
         }
 
+        // 프라이빗 게임일 경우, 점수 및 재화 업데이트를 건너뜀
+        if ($game['game_type'] === 'private') {
+            try {
+                $this->db->beginTransaction();
+                // 게임 결과만 업데이트하고 종료
+                $sqlGame = "UPDATE games SET result = :result, end_reason = :end_reason, fen = :fen, pgn = :pgn, end_at = NOW() WHERE id = :id";
+                $stmtGame = $this->db->prepare($sqlGame);
+                $stmtGame->execute(['result' => $result, 'end_reason' => $endReason, 'fen' => $fen, 'pgn' => $pgn, 'id' => $gameId]);
+                $this->db->commit();
+                return true;
+            } catch (\PDOException $e) {
+                $this->db->rollBack();
+                // 로깅 필요
+                return false;
+            }
+        }
+
         $whitePlayerId = $game['white_player_id'];
         $blackPlayerId = $game['black_player_id'];
         

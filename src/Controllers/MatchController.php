@@ -125,7 +125,7 @@ class MatchController
         }
     }
 
-        /**
+    /**
      * 매칭이 성사될 때까지 대기합니다. (롱 폴링)
      */
     public function waitForMatch(): void
@@ -153,5 +153,205 @@ class MatchController
             http_response_code(200);
             echo json_encode(['status' => 'pending', 'message' => 'Still searching...']);
         }
+    }
+
+    /**
+     * 프라이빗 매치 방을 생성합니다.
+     */
+    public function createPrivateMatch(): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $redis = Database::getRedisInstance();
+        
+        // 6자리 랜덤 코드 생성 (중복 확인 포함)
+        do {
+            $roomCode = substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 6);
+            $redisKey = "private_match:{$roomCode}";
+        } while ($redis->exists($redisKey));
+
+        // Redis에 방 정보 저장 (방 생성자 ID, 생성 시간)
+        $redis->hMSet($redisKey, [
+            'creator_id' => $authedUser->userId,
+            'created_at' => time()
+        ]);
+        // 방은 10분간 유효
+        $redis->expire($redisKey, 600);
+
+        http_response_code(201); // Created
+        echo json_encode(['room_code' => $roomCode]);
+    }
+
+    /**
+     * 프라이빗 매치에 상대방이 참가하기를 기다립니다. (롱 폴링)
+     * @param string $roomCode
+     */
+    public function waitForPrivateMatch(string $roomCode): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+
+        $redis = Database::getRedisInstance();
+        
+        // 이 방의 생성자가 맞는지 확인 (보안)
+        $creatorId = $redis->hGet("private_match:{$roomCode}", 'creator_id');
+        if ($creatorId != $authedUser->userId) {
+            http_response_code(403); // Forbidden
+            echo json_encode(['message' => 'You are not the creator of this room.']);
+            return;
+        }
+
+        $listKey = "private_match_wait:{$roomCode}";
+        
+        $message = $redis->brPop([$listKey], 30);
+
+        if ($message) {
+            $matchData = json_decode($message[1], true);
+            http_response_code(200);
+            echo json_encode($matchData);
+        } else {
+            http_response_code(200);
+            echo json_encode(['status' => 'pending', 'message' => 'Waiting for opponent...']);
+        }
+    }
+
+    /**
+     * 초대 코드를 사용하여 프라이빗 매치에 참가합니다.
+     */
+    public function joinPrivateMatch(): void
+    {
+        $authedUser = Auth::getAuthUser();
+        if (!$authedUser) { 
+            http_response_code(401);
+            echo json_encode(['message' => 'Authentication required.']);
+            return;
+        }
+        
+        $input = (array)json_decode(file_get_contents('php://input'), true);
+        $roomCode = $input['room_code'] ?? null;
+        if (!$roomCode) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Room code is required.']);
+            return;
+        }
+
+        $redis = Database::getRedisInstance();
+        $redisKey = "private_match:{$roomCode}";
+
+        // 1. 방 존재 확인 및 생성자 정보 가져오기
+        $roomData = $redis->hGetAll($redisKey);
+        if (empty($roomData)) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Room not found or has expired.']);
+            return;
+        }
+        $creatorId = (int)$roomData['creator_id'];
+
+        if ($creatorId === $authedUser->userId) {
+            http_response_code(400);
+            echo json_encode(['message' => 'You cannot join your own room.']);
+            return;
+        }
+        
+        // 2. 매칭 성공 처리 (기존 랭크매치 로직과 유사)
+        $userModel = new User();
+        $creatorInfo = $userModel->findById($creatorId);
+        $joinerInfo = $userModel->findById($authedUser->userId);
+
+        // 2-1. 게임 생성 (MySQL), game_type을 'private'으로 지정
+        $gameModel = new Game();
+        $isCreatorWhite = (bool)rand(0, 1);
+        $whitePlayerId = $isCreatorWhite ? $creatorInfo['id'] : $joinerInfo['id'];
+        $blackPlayerId = !$isCreatorWhite ? $creatorInfo['id'] : $joinerInfo['id'];
+        $gameId = $gameModel->createGame($whitePlayerId, $blackPlayerId, 'private');
+
+        if (!$gameId) { /* 500 에러 처리 */
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to create game.']);
+            return;
+        }
+        
+        // 2-2. 초기 게임 상태 생성 (Redis)
+            $initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+            $redisKey = "game:{$gameId}";
+            $redis->hMSet($redisKey, [
+                'fen' => $initialFen,
+                'white_player_id' => $whitePlayerId,
+                'black_player_id' => $blackPlayerId,
+                'current_turn' => 'w',
+                'status' => 'ongoing'
+            ]);
+            $redis->expire($redisKey, 3600);
+
+            // 응답 데이터 미리 준비
+            $myMatchData = [
+                'status' => 'matched',
+                'message' => 'Match found!',
+                'game_id' => $gameId,
+                'my_color' => $isCreatorWhite ? 'white' : 'black',
+                'opponent' => [
+                    'id' => $joinerInfo['id'],
+                    'nickname' => $joinerInfo['nickname'],
+                    'points' => $joinerInfo['points'],
+                    'profile_icon_path' => $joinerInfo['profile_icon_path']
+                ]
+            ];
+
+            $opponentMatchData = [
+                'status' => 'matched',
+                'message' => 'Match found!',
+                'game_id' => $gameId,
+                'my_color' => !$isCreatorWhite ? 'white' : 'black',
+                'opponent' => [
+                    'id' => $creatorInfo['id'],
+                    'nickname' => $creatorInfo['nickname'],
+                    'points' => $creatorInfo['points'],
+                    'profile_icon_path' => $creatorInfo['profile_icon_path']
+                ]
+            ];
+
+        // 2-3. 응답 데이터 생성
+
+        // $myMatchData = [
+        //         'status' => 'matched',
+        //         'message' => 'Match found!',
+        //         'game_id' => $gameId,
+        //         'my_color' => $isWhite ? 'white' : 'black',
+        //         'opponent' => [
+        //             'id' => $opponentInfo['id'],
+        //             'nickname' => $opponentInfo['nickname'],
+        //             'points' => $opponentInfo['points'],
+        //             'profile_icon_path' => $opponentInfo['profile_icon_path']
+        //         ]
+        //     ];
+        $joinerMatchData = [
+            'status' => 'matched', 'game_id' => $gameId, 'my_color' => !$isCreatorWhite ? 'white' : 'black',
+            'opponent' => ['id' => $creatorInfo['id'], 'nickname' => $creatorInfo['nickname'], 'points' => $creatorInfo['points'], 'profile_icon_path' => $creatorInfo['profile_icon_path'] /* ... */]
+        ];
+        $creatorMatchData = [
+            'status' => 'matched', 'game_id' => $gameId, 'my_color' => $isCreatorWhite ? 'white' : 'black',
+            'opponent' => ['id' => $joinerInfo['id'], 'nickname' => $joinerInfo['nickname'], 'points' => $joinerInfo['points'], 'profile_icon_path' => $joinerInfo['profile_icon_path'] /* ... */]
+        ];
+
+        // 3. 대기 중이던 방 생성자에게 알림 보내기
+        $listKey = "private_match_wait:{$roomCode}";
+        $redis->lPush($listKey, json_encode($creatorMatchData));
+        $redis->expire($listKey, 60);
+
+        // 4. 방 정보 삭제 (매칭 완료)
+        $redis->del($redisKey);
+
+        // 5. 참가자에게는 즉시 응답
+        http_response_code(200);
+        echo json_encode($joinerMatchData);
     }
 }

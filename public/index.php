@@ -48,6 +48,11 @@ $router->addRoute('POST', 'api/match/rank', [App\Controllers\MatchController::cl
 // 매칭 결과 대기 API 라우트
 $router->addRoute('GET', 'api/match/wait', [App\Controllers\MatchController::class, 'waitForMatch']);
 
+// 프라이빗 매치 생성 및 대기 API 라우트
+$router->addRoute('POST', 'api/match/private', [App\Controllers\MatchController::class, 'createPrivateMatch']);
+$router->addRoute('GET', 'api/match/private/wait/{roomCode}', [App\Controllers\MatchController::class, 'waitForPrivateMatch']);
+$router->addRoute('POST', 'api/match/private/join', [App\Controllers\MatchController::class, 'joinPrivateMatch']);
+
 // 게임 관련 API 라우트
 
 // 게임 보드 현황 API 라우트

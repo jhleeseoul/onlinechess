@@ -313,3 +313,66 @@ a {
 #draw-button {
     display: none;
 }
+
+/* ================== 탭 UI 스타일 ================== */
+.tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #333; /* 탭과 콘텐츠 구분선 */
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    color: #555;
+    font-size: 16px;
+    position: relative;
+    bottom: -2px; /* 구분선과 겹치게 배치 */
+    transition: color 0.3s ease;
+}
+
+.tab-button:hover {
+    color: #000;
+}
+
+.tab-button.active {
+    color: #000;
+    font-weight: bold;
+    border-bottom: 2px solid #4a90e2; /* 활성 탭 하단 파란색 선 */
+}
+
+.tab-content {
+    animation: fadeIn 0.5s; /* 탭 콘텐츠 나타날 때 페이드인 효과 */
+}
+
+/* 페이드인 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 프라이빗 매치 컨트롤 UI 개선 */
+#private-match-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* 요소 간 간격 */
+    max-width: 300px;
+    margin: 0 auto; /* 가운데 정렬 */
+}
+
+#private-match-controls hr {
+    width: 100%;
+    border: 1px solid #333;
+}
+
+#private-match-controls input[type="text"] {
+    padding: 10px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    text-align: center;
+    font-size: 16px;
+}

@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const views = document.querySelectorAll('.view');
     const startMatchmakingButton = document.getElementById('start-matchmaking-button');
     const matchmakingStatus = document.getElementById('matchmaking-status');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const createRoomButton = document.getElementById('create-room-button');
+    const privateMatchStatus = document.getElementById('private-match-status');
+    const joinRoomButton = document.getElementById('join-room-button');
+    const roomCodeInput = document.getElementById('room-code-input');
 
     // ================== 초기화 함수 ==================
     function initializeLobby(currentUserInfo) {
@@ -195,6 +201,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     }
 
+    function switchTab(tabId) {
+        tabContents.forEach(content => {
+            content.classList.toggle('hidden', content.id !== tabId);
+        });
+        tabButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabId);
+        });
+    }
+
     // ================== 이벤트 리스너 ==================
     // 내비게이션 버튼 클릭
     navButtons.forEach(button => {
@@ -214,6 +229,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 매치메이킹 시작 버튼 클릭
     startMatchmakingButton.addEventListener('click', startMatchmaking);
     
+    // 탭 버튼 클릭
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+
+    // 방 만들기 버튼 클릭
+    createRoomButton.addEventListener('click', createPrivateMatch);
+
+    // 코드로 참가하기 버튼 클릭
+    joinRoomButton.addEventListener('click', joinPrivateMatch);
+
     // 콘텐츠 영역의 클릭 이벤트를 위임하여 처리
     contentArea.addEventListener('click', async (event) => {
         // 구매 버튼 클릭 시
@@ -337,6 +363,60 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.location.href = `./game.html?gameId=${matchData.game_id}`;
             }
         }, 1000);
+    }
+
+    async function createPrivateMatch() {
+        createRoomButton.disabled = true;
+        privateMatchStatus.innerHTML = '<p>초대 코드를 생성 중입니다...</p>';
+        try {
+            const response = await request('/api/match/private', 'POST');
+            const roomCode = response.room_code;
+
+            privateMatchStatus.innerHTML = `
+                <p>초대 코드: <strong>${roomCode}</strong></p>
+                <p> 이 코드를 친구에게 알려주세요. 상대방을 기다리는 중...</p>
+            `;
+            await waitForPrivateMatch(roomCode);
+        } catch (error) {
+            privateMatchStatus.innerHTML = `<p class="error-text">방 생성 실패: ${error.message}</p>`;
+            createRoomButton.disabled = false;
+        }
+    }
+
+    async function waitForPrivateMatch(roomCode) {
+        try {
+            const response = await request(`/api/match/private/wait/${roomCode}`);
+            if (response.status === 'matched') {
+                handleMatchSuccess(response); // 기존 랭크매치 성공 함수 재사용
+            } else if (response.status === 'pending') {
+                await waitForPrivateMatch(roomCode); // 타임아웃 시 다시 대기
+            }
+        } catch (error) {
+            privateMatchStatus.innerHTML = `<p class="error-text">대기 중 오류 발생: ${error.message}</p>`;
+            createRoomButton.disabled = false;
+        }
+    }
+
+    async function joinPrivateMatch() {
+        const roomCode = roomCodeInput.value.trim().toUpperCase();
+        if (roomCode.length !== 6) {
+            alert('초대 코드는 6자리여야 합니다.');
+            return;
+        }
+
+        joinRoomButton.disabled = true;
+        privateMatchStatus.innerHTML = `<p>${roomCode} 방에 참가하는 중...</p>`;
+
+        try {
+            const response = await request('/api/match/private/join', 'POST', { room_code: roomCode });
+            
+            if (response.status === 'matched') {
+                handleMatchSuccess(response); // 매칭 성공 처리 함수 재사용
+            }
+        } catch (error) {
+            privateMatchStatus.innerHTML = `<p class="error-text">참가 실패: ${error.message}</p>`;
+            joinRoomButton.disabled = false;
+        }
     }
 
     function resetMatchmakingUI() {
