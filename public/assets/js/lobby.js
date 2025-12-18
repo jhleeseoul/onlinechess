@@ -256,17 +256,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             const itemId = button.dataset.itemId;
             
             if (confirm(`'${button.parentElement.querySelector('h3').textContent}' 아이템을 구매하시겠습니까?`)) {
+                button.disabled = true;
+                button.textContent = '처리 중...';
                 try {
-                    button.disabled = true;
-                    button.textContent = '처리 중...';
                     const response = await request(`/api/shop/items/${itemId}/buy`, 'POST');
                     alert(response.message);
-                    // 구매 성공 시, 내 정보(코인)와 인벤토리 뷰를 새로고침
+                    // 구매 성공 시, 내 정보(코인)와 현재 상점 뷰를 새로고침
                     await updateUserInfo();
-                    loadViewContent('my-info-view');
+                    loadViewContent('shop-view'); 
                 } catch (error) {
                     alert(`구매 실패: ${error.message}`);
-                } finally {
+                    // 실패 시에만 버튼을 원래대로 되돌림
                     button.disabled = false;
                     button.textContent = '구매';
                 }
