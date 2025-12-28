@@ -35,7 +35,7 @@
 ## 🛠️ 기술 스택 (Tech Stack)
 
 ### Backend
-- **Language:** **PHP 8.x** (Pure PHP, No Frameworks)
+- **Language:** **PHP 8.2** (No Frameworks)
 - **Architecture:** **MVC (Model-View-Controller) 패턴**, 프론트 컨트롤러 패턴
 - **Database:**
     - **MySQL (MariaDB):** 사용자 정보, 게임 기록, 아이템 등 영속 데이터 저장.
@@ -50,7 +50,7 @@
 - **Web Server:** Apache (XAMPP)
 
 ### Frontend
-- **Language:** **Vanilla JavaScript (ES6+)**, HTML5, CSS3
+- **Language:** **JavaScript (ES6+)**, HTML5, CSS3
 - **Asynchronous:** **Fetch API**, **Async/Await**
 - **Real-time:** **Long Polling**
 
@@ -89,12 +89,12 @@
 ### 설치 및 실행
 1.  **저장소 클론:**
     ```bash
-    git clone https://github.com/your-username/php-chess.git
-    cd php-chess
+    git clone https://github.com/jhleeseoul/onlinechess.git
+    cd onlinechess
     ```
 
 2.  **서버(Backend) 설정:**
-    - `php-chess` 폴더를 XAMPP의 `htdocs` 디렉토리로 이동합니다.
+    - `onlinechess` 폴더를 XAMPP의 `htdocs` 디렉토리로 이동합니다.
     - 프로젝트 루트에서 Composer 의존성을 설치합니다.
       ```bash
       composer install
@@ -117,7 +117,7 @@
     - Redis 서버를 실행합니다.
 
 3.  **클라이언트(Frontend) 실행:**
-    - VSCode에서 `php-chess` 폴더를 엽니다.
+    - VSCode에서 `onlinechess` 폴더를 엽니다.
     - `public/client/index.html` 파일을 오른쪽 클릭하여 "Open with Live Server"를 선택합니다.
     - 브라우저가 열리면 회원가입 후 게임을 즐길 수 있습니다.
 

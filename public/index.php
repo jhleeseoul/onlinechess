@@ -16,9 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // 1. Composer 오토로더 불러오기
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// 1. Composer 오토로더 불러오기
-require_once __DIR__ . '/../vendor/autoload.php';
-
 // 2. 환경변수 파일 로드 (.env)
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
