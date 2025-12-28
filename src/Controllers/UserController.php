@@ -7,15 +7,15 @@ use App\Models\User;
 class UserController
 {
     /**
-     * 새로운 사용자를 등록합니다.
+     * 새로운 사용자 등록
      * @return void
      */
     public function register(): void
     {
-        // 1. 클라이언트로부터 받은 JSON 데이터를 php://input 스트림에서 읽어옴
+        // 클라이언트에 받은 JSON 데이터를 php://input 스트림에서 읽음
         $input = (array)json_decode(file_get_contents('php://input'), true);
 
-        // 2. 입력값 검증
+        // 입력값 검증
         if (!isset($input['username']) || !isset($input['password']) || !isset($input['nickname'])) {
             http_response_code(400); // Bad Request
             echo json_encode(['message' => 'Username, password, and nickname are required.']);
@@ -32,11 +32,9 @@ class UserController
             return;
         }
 
-        // 3. 모델을 통해 비즈니스 로직 처리
         $userModel = new User();
         $result = $userModel->create($username, $password, $nickname);
 
-        // 4. 결과에 따른 응답
         if ($result) {
             http_response_code(201); // Created
             echo json_encode(['message' => 'User created successfully.', 'userId' => $result]);
@@ -47,12 +45,11 @@ class UserController
     }
 
     /**
-     * 현재 로그인한 사용자의 정보를 반환합니다.
+     * 현재 로그인한 사용자의 정보를 반환
      * @return void
      */
     public function getMyInfo(): void
     {
-        // 1. 토큰 검증 및 유저 정보 가져오기
         $authedUser = \App\Utils\Auth::getAuthUser();
         
         if ($authedUser === null) {
@@ -61,9 +58,8 @@ class UserController
             return;
         }
 
-        // 2. 토큰에서 얻은 userId로 DB에서 전체 유저 정보 조회
+        // DB에서 전체 유저 정보 조회
         $userModel = new \App\Models\User();
-        // User 모델에 findById 메소드를 추가해야 합니다.
         $userInfo = $userModel->findById($authedUser->userId);
 
         if (!$userInfo) {
@@ -80,7 +76,7 @@ class UserController
     }
 
     /**
-     * 현재 로그인한 사용자의 게임 전적을 조회합니다.
+     * 현재 로그인한 사용자의 게임 전적을 조회
      * @return void
      */
     public function getMyMatches(): void
@@ -100,13 +96,13 @@ class UserController
     }
 
     /**
-     * 사용자 리더보드를 조회합니다.
+     * 사용자 리더보드 조회
      * @return void
      */
     public function showLeaderboard(): void
     {
         $userModel = new \App\Models\User();
-        // 클라이언트에서 'limit' 파라미터를 받을 수도 있습니다.
+        // 추후 수정 : 클라이언트에서 limit 파라미터 받을 수 있음
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
 
         $leaderboard = $userModel->getLeaderboard($limit);
@@ -115,6 +111,11 @@ class UserController
         echo json_encode($leaderboard);
     }
 
+    /**
+     * 사용자 아이템 장착
+     * @param int $userItemId
+     * @return void
+     */
     public function equipUserItem(int $userItemId): void
     {
         $authedUser = \App\Utils\Auth::getAuthUser();
@@ -136,6 +137,10 @@ class UserController
         }
     }
 
+    /**
+     * 현재 로그인한 사용자의 정보 수정
+     * @return void
+     */
     public function updateMyInfo(): void
     {
         $authedUser = \App\Utils\Auth::getAuthUser();
@@ -153,7 +158,7 @@ class UserController
             $dataToUpdate['nickname'] = trim($input['nickname']);
         }
         if (!empty($input['password'])) {
-            // 비밀번호는 추가적인 유효성 검사가 필요할 수 있음 (예: 최소 길이)
+            // 비밀번호 길이 최소 8자 검사
             if (strlen($input['password']) < 8) {
                 http_response_code(400);
                 echo json_encode(['message' => 'Password must be at least 8 characters long.']);
@@ -180,6 +185,10 @@ class UserController
         }
     }
 
+    /**
+     * 현재 로그인한 사용자의 진행 중인 게임 ID 조회
+     * @return void
+     */
     public function getCurrentGame(): void
     {
         $authedUser = \App\Utils\Auth::getAuthUser();

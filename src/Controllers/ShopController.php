@@ -7,9 +7,14 @@ use App\Utils\Auth;
 
 class ShopController
 {
+    /**
+     * 상점의 모든 아이템을 반환
+     * 인증된 유저의 경우, 해당 유저가 보유한 아이템 정보도 함께 반환
+     * @return void
+     */
     public function listItems(): void
     {
-        // 토큰이 있으면 유저 ID를, 없으면 null을 가져옴
+        // 토큰이 있으면 유저 ID, 없으면 null
         $authedUser = \App\Utils\Auth::getAuthUser();
         $userId = $authedUser ? $authedUser->userId : null;
 
@@ -36,17 +41,16 @@ class ShopController
             http_response_code(200);
             echo json_encode(['message' => $result['message']]);
         } else {
-            // 모델에서 보내준 에러 메시지에 따라 적절한 상태 코드 반환
-            http_response_code(400); // Bad Request (일반적인 실패)
+            http_response_code(400); // Bad Request
             if (str_contains($result['message'], '보유')) {
-                http_response_code(409); // Conflict (중복)
+                http_response_code(409); // Conflict
             }
             echo json_encode(['message' => $result['message']]);
         }
     }
 
     /**
-     * 사용자의 아이템 인벤토리를 반환합니다.
+     * 사용자의 아이템 인벤토리를 반환
      * @return void
      */
     public function getMyInventory(): void

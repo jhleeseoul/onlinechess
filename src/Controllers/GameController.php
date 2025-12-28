@@ -27,7 +27,7 @@ class GameController
             return $gameData;
         }
 
-        // 2. Redis에 데이터가 없으면, DB에서 게임 데이터를 조회 (Cache Miss)
+        // 2. Redis에 데이터가 없으면, DB에서 게임 데이터를 조회
         $gameModel = new Game();
         $dbGameData = $gameModel->getGameById($gameId);
 
@@ -44,26 +44,25 @@ class GameController
             return null;
         }
 
-        // 4. DB에서 가져온 게임이 아직 진행 중인 경우, Redis에 복원 (Cache Hydration)
+        // 4. DB에서 가져온 게임이 아직 진행 중인 경우, Redis에 복원
         if ($dbGameData['result'] === 'pending') {
             $gameDataToRedis = [
                 'fen' => $dbGameData['fen'],
                 'white_player_id' => $dbGameData['white_player_id'],
                 'black_player_id' => $dbGameData['black_player_id'],
-                'current_turn' => (new ChessLogic($dbGameData['fen']))->getCurrentTurn(), // FEN에서 현재 턴 추출
+                'current_turn' => (new ChessLogic($dbGameData['fen']))->getCurrentTurn(),
                 'status' => 'ongoing'
             ];
             $redis->hMSet($redisKey, $gameDataToRedis);
-            $redis->expire($redisKey, 3600); // 1시간 후 자동 소멸
+            $redis->expire($redisKey, 3600); // 1시간 TTL
             return $gameDataToRedis;
         } else {
             // 게임이 이미 종료된 경우, Redis에 저장하지 않고 DB 데이터 반환
-            // 이 경우, GameController의 다른 메소드에서 'status' 등을 확인하여 적절히 처리해야 함
             return [
                 'fen' => $dbGameData['fen'],
                 'white_player_id' => $dbGameData['white_player_id'],
                 'black_player_id' => $dbGameData['black_player_id'],
-                'current_turn' => 'none', // 종료된 게임은 턴이 없음
+                'current_turn' => 'none',
                 'status' => 'finished'
             ];
         }
@@ -134,7 +133,6 @@ class GameController
             
             $redis->hSet($redisKey, 'status', 'finished');
 
-            // ★★★ 수정: 응답과 알림 메시지에 게임 종료 정보를 추가합니다.
             $response['status'] = 'finished';
             $response['result'] = ['result' => $result, 'reason' => $endReason];
             
@@ -155,7 +153,6 @@ class GameController
             echo json_encode(['message' => 'Authentication required.']);
             return; 
         }
-        // getGameData는 세션을 사용하지 않으므로, 사용자 인증 후 바로 세션 잠금을 해제합니다.
         session_write_close();
         ignore_user_abort(false);
 
@@ -164,35 +161,32 @@ class GameController
 
         $myColor = ($authedUser->userId == $gameData['white_player_id']) ? 'w' : 'b';
 
-        // Blocking List Pop (BRPOP) 사용
+        // 1. Redis에서 롱 폴링 대기
         $redis = Database::getRedisInstance();
         $updateListKey = "game_updates_list:{$gameId}:{$myColor}";
 
-        // ★★★★★ 2. 30초 동안 한 번만 기다리는 대신, 짧게 여러 번 확인하여 연결 중단을 더 빨리 감지합니다.
-        $timeout = 30; // 총 대기 시간 (초)
+        $timeout = 30; // TTL
         $startTime = time();
 
         while (time() - $startTime < $timeout) {
-            // ★★★★★ 3. 클라이언트 연결이 끊겼는지 매번 확인합니다.
             if (connection_aborted()) {
-                // 연결이 끊겼으면 즉시 스크립트 종료 (유령 요청 소멸)
+                // 연결이 끊겼으면 즉시 스크립트 종료
                 break; 
             }
 
-            // Redis를 5초 동안만 블로킹해서 기다립니다.
+            // 5초간 블로킹
             $message = $redis->brPop([$updateListKey], 5); 
 
             if ($message) {
-                // 메시지를 받으면 즉시 응답하고 루프를 종료합니다.
                 $updateData = json_decode($message[1], true);
                 echo json_encode(['status' => 'updated', 'data' => $updateData]);
                 return;
             }
             
-            // 5초 동안 메시지가 없으면 루프를 계속 돌며 다시 시도합니다.
+            // timeout 시 다시 루프를 돌면서 대기
         }
 
-        // 30초가 지나도 아무 일도 없으면 타임아웃 응답을 보냅니다.
+        // 30초 경과시 타임아웃 응답
         echo json_encode(['status' => 'timeout']);
     }
 
@@ -217,7 +211,7 @@ class GameController
             return;
         }
         
-        // 이미 종료된 게임인지 확인
+        
         if ($gameData['status'] === 'finished') {
             http_response_code(400);
             echo json_encode(['message' => 'This game has already finished.']);
@@ -225,8 +219,7 @@ class GameController
         }
         
         $isWhite = ($authedUser->userId == $gameData['white_player_id']);
-        
-        // 게임 결과 및 종료 사유 결정
+    
         $result = $isWhite ? 'black_win' : 'white_win';
         $endReason = 'resign';
 
@@ -364,7 +357,7 @@ class GameController
                 // 상대방에게 게임 종료 알림
                 $this->notifyOpponent($gameId, $endData, $opponentColor);
                 
-                // 수락한 나에게도 게임 종료 응답
+                // 본인에 게임 종료 응답
                 echo json_encode($endData);
                 break;
 
@@ -394,7 +387,6 @@ class GameController
             return;
         }
 
-        // getGameData 헬퍼를 재사용하여 권한 체크 및 데이터 조회
         $gameData = $this->getGameData($gameId, $authedUser->userId);
         if (!$gameData) return;
 
@@ -405,7 +397,7 @@ class GameController
             return;
         }
 
-        // 추가적으로 양쪽 플레이어의 상세 정보도 함께 보내줌
+        // 양쪽 플레이어의 상세 정보 전송
         $userModel = new User();
         $whitePlayer = $userModel->findById((int)$gameData['white_player_id']);
         $blackPlayer = $userModel->findById((int)$gameData['black_player_id']);
@@ -452,12 +444,7 @@ class GameController
         echo json_encode($validMoves);
     }
 
-    /**
-     * 상대방에게 롱 폴링 알림을 보내는 헬퍼 메소드
-     * @param int $gameId
-     * @param array $data
-     * @param string $opponentColor
-     */
+    
     private function notifyOpponent(int $gameId, array $data, string $opponentColor): void
     {
         $redis = Database::getRedisInstance();
