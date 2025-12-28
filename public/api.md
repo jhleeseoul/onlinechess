@@ -2,7 +2,7 @@
 
 ## API 명세서 (API Specification)
 
-**Base URL:** `http://localhost/onlinechess/public`
+**Base URL:** `http://localhost/onlinechess/public` (로컬 개발 환경). 프로덕션에서는 서버 URL로 변경
 
 **인증 방식:** JWT (JSON Web Token)
 - 로그인이 필요한 모든 API는 HTTP 요청 헤더에 다음 형식을 포함해야 합니다.
@@ -78,15 +78,18 @@
       "piece_skin_path": "/assets/defaults/default_pieces/"
   }
   ```
+- **Error Responses:**
+  - `401 Unauthorized`: 인증 토큰이 없거나 유효하지 않은 경우.
 
 #### **2.2. 내 정보 수정**
 - **Endpoint:** `PATCH /api/users/me`
 - **인증:** **필수**
-- **설명:** 닉네임 또는 비밀번호를 수정합니다. (변경할 필드만 포함)
-- **Request Body:**
+- **설명:** 닉네임 또는 비밀번호를 수정합니다. 변경할 필드만 포함하며, 빈 값은 무시됩니다.
+- **Request Body (예시):**
   ```json
   {
-      "nickname": "NewNickname"
+      "nickname": "NewNickname",
+      "password": "newpassword123"
   }
   ```
 - **Response (200 OK):**
@@ -95,6 +98,9 @@
       "message": "User information updated successfully."
   }
   ```
+- **Error Responses:**
+  - `400 Bad Request`: 비밀번호가 8자 미만일 때.
+  - `409 Conflict`: 닉네임이 이미 사용 중일 때.
 
 #### **2.3. 내 전적 조회**
 - **Endpoint:** `GET /api/users/me/matches`
@@ -246,6 +252,9 @@
   }
   ```
 - **Error Responses:**
+  - `401 Unauthorized`: 인증 토큰이 없거나 유효하지 않은 경우.
+  - `403 Forbidden`: 게임 참가자가 아닌 경우.
+  - `404 Not Found`: 게임이 존재하지 않는 경우.
   - `410 Gone`: 이미 종료된 게임일 경우.
 
 #### **4.2. 유효한 이동 경로 조회**
@@ -276,15 +285,24 @@
       "isCheck": false
   }
   ```
+- **Error Responses:**
+  - `400 Bad Request`: 필수 필드가 누락되거나, 유효하지 않은 이동일 때.
+  - `401 Unauthorized`: 인증 토큰이 없거나 유효하지 않은 경우.
+  - `403 Forbidden`: 자신의 턴이 아닐 때.
 
 #### **4.4. 상대방 수 대기 (롱 폴링)**
 - **Endpoint:** `GET /api/game/{gameId}/wait-for-move`
+- **설명:** 상대방의 수를 기다립니다. 업데이트가 발생하면 즉시 응답하며, 30초 타임아웃 후 재요청 필요.
 - **Response:**
   - **업데이트 발생 시 (200 OK):**
     ```json
     {
         "status": "updated",
-        "data": { "fen": "...", "isCheck": false, "type": "draw_offer", ... }
+        "data": {
+            "fen": "...",
+            "isCheck": false,
+            "type": "move"  // 또는 "draw_offer", "draw_declined", "resign" 등
+        }
     }
     ```
   - **타임아웃 시 (200 OK):** `{"status": "timeout"}`
@@ -305,6 +323,25 @@
       ...
   }
   ```
+
+#### **4.7. 무승부 제안 처리**
+- **Endpoint:** `POST /api/game/{gameId}/draw`
+- **인증:** **필수**
+- **설명:** 무승부를 제안하거나, 상대방의 제안을 수락/거절합니다. 게임이 진행 중일 때만 가능하며, 자신의 턴에만 제안할 수 있습니다.
+- **Request Body:**
+  ```json
+  {
+      "action": "offer"  // "offer" (제안), "accept" (수락), "decline" (거절) 중 하나
+  }
+  ```
+- **Response (200 OK):**
+  - 제안 시: `{"message": "Draw offer sent."}`
+  - 수락 시: `{"status": "finished", "result": {"result": "draw", "reason": "agreement"}}`
+  - 거절 시: `{"message": "Draw offer declined."}`
+- **Error Responses:**
+  - `400 Bad Request`: 잘못된 action, 자신의 턴이 아닐 때 제안 시도, 이미 제안이 대기 중일 때.
+  - `409 Conflict`: 이미 제안이 대기 중일 때.
+  - `410 Gone`: 게임이 이미 종료된 경우.
 
 ---
 
@@ -328,6 +365,9 @@
 - **URL Parameters:**
   - `itemId` (int): 구매할 아이템의 `items` 테이블 ID.
 - **Response (200 OK):** `{"message": "구매가 완료되었습니다."}`
+- **Error Responses:**
+  - `400 Bad Request`: 코인이 부족하거나, 이미 보유한 아이템일 때.
+  - `404 Not Found`: 아이템이 존재하지 않는 경우.
 
 ---
 
